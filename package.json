@@ -1,0 +1,17 @@
+{
+  "name": "syncrolly",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev:mobile": "pnpm --filter mobile start",
+    "dev:mobile:lan": "pnpm --dir apps/mobile exec expo start --clear --lan --port 8082",
+    "dev:mobile:tunnel": "pnpm --dir apps/mobile exec expo start --clear --tunnel --port 8082",
+    "dev:web": "pnpm --filter web dev",
+    "lint": "echo 'Add linting later'",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.10",
+    "typescript": "~5.9.2"
+  }
+}

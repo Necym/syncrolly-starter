@@ -1,0 +1,10 @@
+node_modules
+.pnpm-store
+.expo
+.next
+dist
+build
+.env*
+!.env.example
+!apps/*/.env.example
+.DS_Store

@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Syncrolly",
+    "slug": "syncrolly",
+    "scheme": "syncrolly",
+    "plugins": [
+      "expo-router",
+      "expo-notifications"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "70a92735-e2d7-460e-a293-cc2335c6b274"
+      }
+    }
+  }
+}
