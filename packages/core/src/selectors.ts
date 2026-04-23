@@ -174,11 +174,14 @@ export function getConversationByThreadId(
         createdAt: message.createdAt,
         timeLabel: formatMessageTime(message.createdAt),
         dayLabel: shouldShowDayLabel ? dayLabel : undefined,
-        isFromCreator: message.senderId === thread.creatorId
+        isFromCreator: message.senderId === thread.creatorId,
+        kind: 'text'
       };
     });
 
   const activityPrefix = summary.participantPresence === 'online' ? 'Active' : 'Last active';
+  const canApproveRequest = thread.status === 'request';
+  const viewerHasSentMessage = conversationMessages.some((message) => message.senderId === thread.creatorId);
 
   return {
     id: summary.id,
@@ -188,8 +191,12 @@ export function getConversationByThreadId(
     participantAvatar: summary.participantAvatar,
     participantAccentColor: summary.participantAccentColor,
     participantPresence: summary.participantPresence,
+    status: thread.status,
+    statusLabel: statusLabels[thread.status],
     relativeTime: summary.relativeTime,
     activityLabel: `${activityPrefix} ${summary.relativeTime}`,
+    canSendMessage: thread.status !== 'request' || !viewerHasSentMessage,
+    canApproveRequest,
     messages: conversationMessages
   };
 }

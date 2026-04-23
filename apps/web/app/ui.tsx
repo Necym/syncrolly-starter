@@ -51,6 +51,7 @@ export function Icon({
   filled = false
 }: {
   name:
+    | 'notifications'
     | 'settings'
     | 'search'
     | 'compose'
@@ -66,17 +67,55 @@ export function Icon({
     | 'more';
   filled?: boolean;
 }) {
+  if (name === 'notifications') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M8.25 9.15a3.75 3.75 0 1 1 7.5 0v2.1c0 .73.2 1.44.58 2.06l.8 1.33c.42.7-.08 1.61-.9 1.61H7.77c-.82 0-1.32-.91-.9-1.61l.8-1.33c.38-.62.58-1.33.58-2.06z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M10.2 18.2a1.9 1.9 0 0 0 3.6 0"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
   if (name === 'settings') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path
-          d="M10.3 2.6h3.4l.6 2.2a7.6 7.6 0 0 1 1.8.8l2.1-1.2 2.4 2.4-1.2 2.1a7.6 7.6 0 0 1 .8 1.8l2.2.6v3.4l-2.2.6a7.7 7.7 0 0 1-.8 1.8l1.2 2.1-2.4 2.4-2.1-1.2a7.6 7.6 0 0 1-1.8.8l-.6 2.2h-3.4l-.6-2.2a7.6 7.6 0 0 1-1.8-.8l-2.1 1.2-2.4-2.4 1.2-2.1a7.7 7.7 0 0 1-.8-1.8L2.6 13.7v-3.4l2.2-.6a7.6 7.6 0 0 1 .8-1.8L4.4 5.8l2.4-2.4 2.1 1.2a7.6 7.6 0 0 1 1.8-.8z"
+          d="M5 7.25h8.5"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinejoin="round"
+          strokeWidth="1.7"
+          strokeLinecap="round"
         />
-        <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="16.5" cy="7.25" r="2" fill="none" stroke="currentColor" strokeWidth="1.7" />
+        <path
+          d="M10.5 12h8.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+        <circle cx="7.5" cy="12" r="2" fill="none" stroke="currentColor" strokeWidth="1.7" />
+        <path
+          d="M5 16.75h8.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+        <circle cx="16.5" cy="16.75" r="2" fill="none" stroke="currentColor" strokeWidth="1.7" />
       </svg>
     );
   }

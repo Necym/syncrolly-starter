@@ -1,6 +1,7 @@
 import { APP_NAME, theme } from '@syncrolly/config';
 import type { CSSProperties, ReactNode } from 'react';
 import './globals.css';
+import { RealtimeVoiceWidget } from './realtime-voice-widget';
 
 export const metadata = {
   title: `${APP_NAME} | Creator Inbox`,
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body className="syncrolly-body" style={rootVariables}>
         {children}
+        <RealtimeVoiceWidget />
       </body>
     </html>
   );

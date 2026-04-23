@@ -5,7 +5,21 @@
     "scheme": "syncrolly",
     "plugins": [
       "expo-router",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Syncrolly to access your photo library so you can choose a profile photo.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Syncrolly to access your microphone for voice assistant conversations."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

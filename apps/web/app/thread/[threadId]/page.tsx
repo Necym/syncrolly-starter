@@ -1,6 +1,6 @@
 'use client';
 
-import { getConversationDetails, markConversationRead, sendMessage } from '@syncrolly/data';
+import { approveConversationRequest, getConversationDetails, markConversationRead, sendMessage } from '@syncrolly/data';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useWebSession } from '../../../lib/session';
@@ -18,6 +18,7 @@ export default function ThreadPage() {
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [approvingRequest, setApprovingRequest] = useState(false);
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [conversation, setConversation] = useState<Awaited<ReturnType<typeof getConversationDetails>>>(null);
 
@@ -80,6 +81,14 @@ export default function ThreadPage() {
       return;
     }
 
+    const staleChannelPrefix = `realtime:web-thread-live:${resolvedThreadId}:${user.id}`;
+
+    for (const existingChannel of supabase.getChannels()) {
+      if (existingChannel.topic.startsWith(staleChannelPrefix)) {
+        void supabase.removeChannel(existingChannel);
+      }
+    }
+
     const scheduleThreadRefresh = () => {
       if (realtimeRefreshTimeoutRef.current) {
         clearTimeout(realtimeRefreshTimeoutRef.current);
@@ -92,7 +101,19 @@ export default function ThreadPage() {
     };
 
     const channel = supabase
-      .channel(`web-thread-live:${resolvedThreadId}:${user.id}`)
+      .channel(`web-thread-live:${resolvedThreadId}:${user.id}:${Date.now()}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversations',
+          filter: `id=eq.${resolvedThreadId}`
+        },
+        () => {
+          scheduleThreadRefresh();
+        }
+      )
       .on(
         'postgres_changes',
         {
@@ -159,7 +180,7 @@ export default function ThreadPage() {
 
     const nextText = draft.trim();
 
-    if (!nextText) {
+    if (!nextText || !conversation.canSendMessage) {
       return;
     }
 
@@ -168,6 +189,12 @@ export default function ThreadPage() {
     pendingAutoScrollRef.current = true;
 
     try {
+      if (conversation.canApproveRequest) {
+        await approveConversationRequest(supabase, {
+          conversationId: conversation.id
+        });
+      }
+
       await sendMessage(supabase, {
         conversationId: conversation.id,
         senderId: user.id,
@@ -180,6 +207,27 @@ export default function ThreadPage() {
       setFeedback(getErrorMessage(error, 'Something went wrong while loading the conversation.'));
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleApproveRequest() {
+    if (!supabase || !conversation?.canApproveRequest) {
+      return;
+    }
+
+    setApprovingRequest(true);
+    setFeedback(null);
+
+    try {
+      await approveConversationRequest(supabase, {
+        conversationId: conversation.id
+      });
+
+      await loadConversation({ showLoader: false });
+    } catch (error) {
+      setFeedback(getErrorMessage(error, 'Something went wrong while updating the request.'));
+    } finally {
+      setApprovingRequest(false);
     }
   }
 
@@ -274,6 +322,21 @@ export default function ThreadPage() {
   const activityLabel = conversation.activityLabel.toUpperCase();
   const presenceColor = conversation.participantPresence === 'online' ? 'var(--color-success)' : 'var(--color-text-muted)';
   const showAvatarImage = Boolean(conversation.participantAvatar && !avatarFailed);
+  const requestBannerTitle = conversation.canApproveRequest
+    ? 'Message request'
+    : conversation.canSendMessage
+      ? 'Send your first request'
+      : 'Pending approval';
+  const requestBannerBody = conversation.canApproveRequest
+    ? 'Approve this request to move the conversation into the active inbox, or reply to approve it automatically.'
+    : conversation.canSendMessage
+      ? 'This creator gates access. Your first message will be sent as a request for approval.'
+      : 'Your request has been sent. You can send more messages after the creator approves the conversation.';
+  const composerPlaceholder = !conversation.canSendMessage
+    ? 'Waiting for creator approval...'
+    : conversation.status === 'request'
+      ? 'Send your request...'
+      : 'Write a message...';
 
   return (
     <div className="thread-page">
@@ -316,6 +379,27 @@ export default function ThreadPage() {
         <section className="thread-shell">
           <div ref={scrollPanelRef} className="thread-scroll-panel">
             <div className="thread-messages">
+              {conversation.status === 'request' ? (
+                <div className="request-banner">
+                  <div className="request-banner-header">
+                    <span className="request-badge">{conversation.statusLabel}</span>
+                    {conversation.canApproveRequest ? (
+                      <button
+                        type="button"
+                        className="request-approve-button"
+                        onClick={() => void handleApproveRequest()}
+                        disabled={approvingRequest}
+                      >
+                        {approvingRequest ? <span className="button-spinner" aria-hidden="true" /> : 'Approve'}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <h2 className="request-banner-title">{requestBannerTitle}</h2>
+                  <p className="request-banner-body">{requestBannerBody}</p>
+                </div>
+              ) : null}
+
               {feedback ? <p className="feedback-inline">{feedback}</p> : null}
 
               {conversation.messages.map((message) => (
@@ -352,9 +436,10 @@ export default function ThreadPage() {
             </button>
 
             <input
-              className="thread-input"
+              className={`thread-input${!conversation.canSendMessage ? ' disabled' : ''}`}
               type="text"
               value={draft}
+              disabled={!conversation.canSendMessage}
               onChange={(event) => setDraft(event.target.value)}
               onFocus={() => {
                 pendingAutoScrollRef.current = true;
@@ -365,14 +450,14 @@ export default function ThreadPage() {
                   void handleSend();
                 }
               }}
-              placeholder="Write a message..."
+              placeholder={composerPlaceholder}
             />
 
             <button
               type="button"
-              className={`send-button${!draft.trim() || sending ? ' disabled' : ''}`}
+              className={`send-button${!draft.trim() || sending || !conversation.canSendMessage ? ' disabled' : ''}`}
               onClick={() => void handleSend()}
-              disabled={!draft.trim() || sending}
+              disabled={!draft.trim() || sending || !conversation.canSendMessage}
               aria-label="Send message"
             >
               {sending ? <span className="button-spinner" aria-hidden="true" /> : <Icon name="send" />}

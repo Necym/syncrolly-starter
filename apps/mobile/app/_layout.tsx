@@ -123,7 +123,85 @@ export default function RootLayout() {
     >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
+        name="assistant"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
         name="thread/[threadId]"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="instagram-lead/[leadId]"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="instagram-oauth-complete"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="profile/[profileId]"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="profile-settings"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="program/[programId]"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="program-studio"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="program-studio-editor"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="inquiry-preview"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="form-builder"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="form-responses"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="inquiry-person/[supporterId]"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
+        name="form-tools"
         options={{
           animation: 'slide_from_right'
         }}

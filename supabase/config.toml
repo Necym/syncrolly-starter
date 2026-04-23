@@ -1,0 +1,17 @@
+[functions.voice-assistant]
+verify_jwt = false
+
+[functions.notify-new-message]
+verify_jwt = false
+
+[functions.instagram-oauth-start]
+verify_jwt = false
+
+[functions.instagram-oauth-callback]
+verify_jwt = false
+
+[functions.instagram-webhook]
+verify_jwt = false
+
+[functions.instagram-send-button-reply]
+verify_jwt = false

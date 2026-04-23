@@ -68,10 +68,11 @@ Deno.serve(async (request) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const publishableKey = Deno.env.get('SB_PUBLISHABLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY');
   const authHeader = request.headers.get('Authorization');
   const accessToken = authHeader?.replace(/^Bearer\s+/i, '').trim();
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!supabaseUrl || !serviceRoleKey || !publishableKey) {
     return jsonResponse(500, {
       error: 'Supabase Edge Function environment is not configured.'
     });
@@ -83,7 +84,7 @@ Deno.serve(async (request) => {
     });
   }
 
-  const adminClient = createClient<Database>(supabaseUrl, serviceRoleKey, {
+  const verificationClient = createClient(supabaseUrl, publishableKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false
@@ -91,15 +92,24 @@ Deno.serve(async (request) => {
   });
 
   const {
-    data: { user },
+    data: userData,
     error: userError
-  } = await adminClient.auth.getUser(accessToken);
+  } = await verificationClient.auth.getUser(accessToken);
 
-  if (userError || !user) {
+  const viewerId = typeof userData?.user?.id === 'string' ? userData.user.id : null;
+
+  if (userError || !viewerId) {
     return jsonResponse(401, {
       error: 'Unauthorized'
     });
   }
+
+  const adminClient = createClient<Database>(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  });
 
   let payload: NotifyPayload;
 
@@ -135,7 +145,7 @@ Deno.serve(async (request) => {
     });
   }
 
-  if (message.sender_id !== user.id) {
+  if (message.sender_id !== viewerId) {
     return jsonResponse(403, {
       error: 'You can only notify recipients for your own messages.'
     });

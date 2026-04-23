@@ -62,7 +62,10 @@ export const creatorProfiles: CreatorProfile[] = [
     userId: 'creator-1',
     niche: 'Fitness',
     headline: 'Professional creator messaging for qualified supporters and clients.',
-    dmAccess: 'subscriber_only'
+    dmAccess: 'subscriber_only',
+    dmIntakePolicy: 'direct_message',
+    dmFeeUsd: 25,
+    pageBlocks: []
   }
 ];
 

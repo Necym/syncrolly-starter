@@ -2,20 +2,35 @@
 
 import {
   hasCompletedProfile,
+  type ConversationDetail,
+  type ConversationMessage,
   type DirectoryProfile,
   type InboxThreadSummary,
+  type InstagramAccountConnection,
+  type InstagramLeadSummary,
+  type InquiryFormSubmission,
   type UserRole,
   type ViewerProfile
 } from '@syncrolly/core';
 import {
+  approveConversationRequest,
   createDirectConversation,
+  getConversationDetails,
+  getInstagramAccountConnection,
+  getPublicProfile,
   getViewerProfile,
+  listCreatorInquiryFormSubmissions,
   listInboxThreads,
+  listInstagramLeads,
+  markConversationRead,
+  openInquirySubmissionConversation,
   saveCreatorProfile,
   saveSupporterProfile,
-  searchProfiles
+  startInstagramOAuth,
+  searchProfiles,
+  sendMessage
 } from '@syncrolly/data';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { getDefaultDisplayName, getPreferredRole, useWebSession } from '../lib/session';
@@ -23,6 +38,7 @@ import { BottomNav, BrandMark, Icon, getErrorMessage } from './ui';
 
 type AuthMode = 'sign-in' | 'sign-up';
 type DmAccess = 'free' | 'subscriber_only' | 'paid_only';
+type InboxTab = 'all' | 'unread' | 'forms' | 'instagram' | 'other';
 
 function matchesSearch(thread: InboxThreadSummary, searchValue: string): boolean {
   const normalizedSearch = searchValue.trim().toLowerCase();
@@ -38,15 +54,93 @@ function matchesSearch(thread: InboxThreadSummary, searchValue: string): boolean
   );
 }
 
+function matchesSubmissionSearch(submission: InquiryFormSubmission, searchValue: string): boolean {
+  const normalizedSearch = searchValue.trim().toLowerCase();
+
+  if (!normalizedSearch) {
+    return true;
+  }
+
+  return (
+    submission.supporterName.toLowerCase().includes(normalizedSearch) ||
+    submission.answers.some(
+      (answer) =>
+        answer.questionPrompt.toLowerCase().includes(normalizedSearch) ||
+        answer.answerText.toLowerCase().includes(normalizedSearch)
+    )
+  );
+}
+
+function matchesInstagramLeadSearch(lead: InstagramLeadSummary, searchValue: string): boolean {
+  const normalizedSearch = searchValue.trim().toLowerCase();
+
+  if (!normalizedSearch) {
+    return true;
+  }
+
+  return (
+    lead.displayName.toLowerCase().includes(normalizedSearch) ||
+    (lead.instagramUsername ?? '').toLowerCase().includes(normalizedSearch) ||
+    lead.lastMessageText.toLowerCase().includes(normalizedSearch)
+  );
+}
+
+function getRequestLabel(viewerRole: UserRole | undefined): string {
+  return viewerRole === 'creator' ? 'Message request' : 'Pending approval';
+}
+
+function getInitials(value: string): string {
+  return (
+    value
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('') || 'S'
+  );
+}
+
+function formatTimeline(value: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }).format(new Date(value));
+  } catch {
+    return 'Recently';
+  }
+}
+
+function formatSubmissionCardTime(value: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(new Date(value));
+  } catch {
+    return 'Recently';
+  }
+}
+
 export default function HomePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: sessionLoading, supabase, isConfigured } = useWebSession();
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null);
   const [threads, setThreads] = useState<InboxThreadSummary[]>([]);
+  const [pendingFormSubmissions, setPendingFormSubmissions] = useState<InquiryFormSubmission[]>([]);
+  const [instagramConnection, setInstagramConnection] = useState<InstagramAccountConnection | null>(null);
+  const [instagramLeads, setInstagramLeads] = useState<InstagramLeadSummary[]>([]);
   const [loadingView, setLoadingView] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [instagramDebug, setInstagramDebug] = useState<string | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const deferredSearchValue = useDeferredValue(searchValue);
+  const [inboxTab, setInboxTab] = useState<InboxTab>('all');
+  const [connectingInstagram, setConnectingInstagram] = useState(false);
 
   const [authMode, setAuthMode] = useState<AuthMode>('sign-in');
   const [email, setEmail] = useState('');
@@ -68,11 +162,61 @@ export default function HomePage() {
   const [composeLoading, setComposeLoading] = useState(false);
   const [creatingConversationId, setCreatingConversationId] = useState<string | null>(null);
 
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationDetail | null>(null);
+  const [selectedParticipantProfile, setSelectedParticipantProfile] = useState<ViewerProfile | null>(null);
+  const [loadingConversation, setLoadingConversation] = useState(false);
+  const [loadingParticipantProfile, setLoadingParticipantProfile] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [approvingRequest, setApprovingRequest] = useState(false);
+  const [openingSubmissionId, setOpeningSubmissionId] = useState<string | null>(null);
+  const [expandedFormSubmissionIds, setExpandedFormSubmissionIds] = useState<string[]>([]);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const [participantAvatarFailed, setParticipantAvatarFailed] = useState(false);
+  const preserveFeedbackRef = useRef(false);
+
   const loadRequestIdRef = useRef(0);
   const threadIdsRef = useRef<Set<string>>(new Set());
   const realtimeRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const conversationRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollPanelRef = useRef<HTMLDivElement>(null);
+  const pendingAutoScrollRef = useRef(true);
+
   const profileComplete = hasCompletedProfile(viewerProfile);
-  const visibleThreads = threads.filter((thread) => matchesSearch(thread, deferredSearchValue));
+  const allAcceptedThreads = threads.filter((thread) => thread.status !== 'request');
+  const unreadAcceptedThreads = allAcceptedThreads.filter((thread) => thread.unread);
+  const otherThreads = threads.filter((thread) => thread.status === 'request');
+  const visibleAllThreads = allAcceptedThreads.filter((thread) => matchesSearch(thread, deferredSearchValue));
+  const visibleUnreadThreads = unreadAcceptedThreads.filter((thread) => matchesSearch(thread, deferredSearchValue));
+  const visibleOtherThreads = otherThreads.filter((thread) => matchesSearch(thread, deferredSearchValue));
+  const visiblePendingFormSubmissions = pendingFormSubmissions.filter((submission) =>
+    matchesSubmissionSearch(submission, deferredSearchValue)
+  );
+  const visibleInstagramLeads = instagramLeads.filter((lead) => matchesInstagramLeadSearch(lead, deferredSearchValue));
+  const selectedThread = selectedThreadId ? threads.find((thread) => thread.id === selectedThreadId) ?? null : null;
+  const selectedSubmission = selectedSubmissionId
+    ? pendingFormSubmissions.find((submission) => submission.id === selectedSubmissionId) ?? null
+    : null;
+  const activeParticipantId =
+    inboxTab === 'forms' ? selectedSubmission?.supporterId ?? null : selectedThread?.participantId ?? null;
+  const activeParticipantFallbackName =
+    inboxTab === 'forms'
+      ? selectedSubmission?.supporterName ?? 'Syncrolly user'
+      : selectedConversation?.participantName ?? selectedThread?.participantName ?? 'Conversation';
+  const activeParticipantFallbackAvatar =
+    inboxTab === 'forms'
+      ? selectedSubmission?.supporterAvatarUrl
+      : selectedParticipantProfile?.avatarUrl ?? selectedConversation?.participantAvatar ?? selectedThread?.participantAvatar;
+  const activeParticipantFallbackRole =
+    selectedParticipantProfile?.role === 'creator'
+      ? 'Creator'
+      : selectedParticipantProfile?.role === 'supporter'
+        ? 'Supporter'
+        : inboxTab === 'forms'
+          ? 'Supporter'
+          : '';
 
   function scheduleInboxRefresh() {
     if (!user) {
@@ -106,8 +250,47 @@ export default function HomePage() {
       }
 
       let nextThreads: InboxThreadSummary[] = [];
+      let nextPendingFormSubmissions: InquiryFormSubmission[] = [];
+      let nextInstagramConnection: InstagramAccountConnection | null = null;
+      let nextInstagramLeads: InstagramLeadSummary[] = [];
+      let nextFeedback: string | null = null;
+
       if (hasCompletedProfile(nextProfile)) {
-        nextThreads = await listInboxThreads(supabase, currentUserId);
+        const [threadsResult, formsResult, instagramConnectionResult, instagramLeadsResult] = await Promise.allSettled([
+          listInboxThreads(supabase, currentUserId),
+          nextProfile.role === 'creator'
+            ? listCreatorInquiryFormSubmissions(supabase, currentUserId, { status: 'pending' })
+            : Promise.resolve([] as InquiryFormSubmission[]),
+          getInstagramAccountConnection(supabase, currentUserId),
+          listInstagramLeads(supabase, currentUserId)
+        ]);
+
+        if (threadsResult.status === 'fulfilled') {
+          nextThreads = threadsResult.value;
+        } else {
+          nextFeedback = getErrorMessage(threadsResult.reason);
+        }
+
+        if (formsResult.status === 'fulfilled') {
+          nextPendingFormSubmissions = formsResult.value;
+        } else if (!nextFeedback) {
+          nextFeedback = getErrorMessage(formsResult.reason);
+        }
+
+        if (instagramConnectionResult.status === 'fulfilled') {
+          nextInstagramConnection = instagramConnectionResult.value;
+          if (nextInstagramConnection) {
+            nextFeedback = nextFeedback;
+          }
+        } else if (!nextFeedback) {
+          nextFeedback = getErrorMessage(instagramConnectionResult.reason);
+        }
+
+        if (instagramLeadsResult.status === 'fulfilled') {
+          nextInstagramLeads = instagramLeadsResult.value;
+        } else if (!nextFeedback) {
+          nextFeedback = getErrorMessage(instagramLeadsResult.reason);
+        }
 
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -116,7 +299,17 @@ export default function HomePage() {
 
       setViewerProfile(nextProfile);
       setThreads(nextThreads);
-      setFeedback(null);
+      setPendingFormSubmissions(nextPendingFormSubmissions);
+      setInstagramConnection(nextInstagramConnection);
+      setInstagramLeads(nextInstagramLeads);
+      setInstagramDebug(
+        nextInstagramConnection
+          ? `loadViewerState: connected as ${nextInstagramConnection.instagramUsername ?? nextInstagramConnection.instagramUserId}`
+          : 'loadViewerState: no instagram connection row returned'
+      );
+      if (!preserveFeedbackRef.current) {
+        setFeedback(nextFeedback);
+      }
     } catch (error) {
       if (loadRequestIdRef.current === requestId) {
         setFeedback(getErrorMessage(error));
@@ -124,6 +317,41 @@ export default function HomePage() {
     } finally {
       if (loadRequestIdRef.current === requestId) {
         setLoadingView(false);
+      }
+    }
+  }
+
+  async function loadSelectedConversation(threadId: string, options?: { showLoader?: boolean }) {
+    if (!supabase || !user) {
+      return;
+    }
+
+    const showLoader = options?.showLoader ?? (selectedConversation == null || selectedConversation.id !== threadId);
+
+    if (showLoader) {
+      setLoadingConversation(true);
+    }
+
+    try {
+      const nextConversation = await getConversationDetails(supabase, threadId, user.id);
+      setSelectedConversation(nextConversation);
+      setFeedback(null);
+      pendingAutoScrollRef.current = true;
+
+      const lastMessage = nextConversation?.messages[nextConversation.messages.length - 1];
+
+      if (lastMessage) {
+        await markConversationRead(supabase, {
+          conversationId: threadId,
+          userId: user.id,
+          readAt: lastMessage.createdAt
+        });
+      }
+    } catch (error) {
+      setFeedback(getErrorMessage(error));
+    } finally {
+      if (showLoader) {
+        setLoadingConversation(false);
       }
     }
   }
@@ -137,10 +365,20 @@ export default function HomePage() {
         realtimeRefreshTimeoutRef.current = null;
       }
 
+      if (conversationRefreshTimeoutRef.current) {
+        clearTimeout(conversationRefreshTimeoutRef.current);
+        conversationRefreshTimeoutRef.current = null;
+      }
+
       loadRequestIdRef.current += 1;
       setLoadingView(false);
       setViewerProfile(null);
       setThreads([]);
+      setPendingFormSubmissions([]);
+      setInstagramConnection(null);
+      setInstagramLeads([]);
+      setSelectedConversation(null);
+      setSelectedParticipantProfile(null);
       return;
     }
 
@@ -189,7 +427,7 @@ export default function HomePage() {
 
       searchProfiles(supabase, composeSearch)
         .then((results) => {
-          setComposeResults(results);
+          setComposeResults(results.filter((profile) => profile.id !== user.id));
         })
         .catch((error) => {
           setFeedback(getErrorMessage(error));
@@ -209,8 +447,58 @@ export default function HomePage() {
       return;
     }
 
+    const staleChannelPrefix = 'realtime:web-inbox-live:';
+
+    for (const existingChannel of supabase.getChannels()) {
+      if (existingChannel.topic.startsWith(staleChannelPrefix)) {
+        void supabase.removeChannel(existingChannel);
+      }
+    }
+
+    const scheduleConversationRefresh = () => {
+      if (!selectedThreadId) {
+        return;
+      }
+
+      if (conversationRefreshTimeoutRef.current) {
+        clearTimeout(conversationRefreshTimeoutRef.current);
+      }
+
+      conversationRefreshTimeoutRef.current = setTimeout(() => {
+        conversationRefreshTimeoutRef.current = null;
+        void loadSelectedConversation(selectedThreadId, { showLoader: false });
+      }, 140);
+    };
+
     const channel = supabase
-      .channel(`web-inbox-live:${user.id}`)
+      .channel(`web-inbox-live:${user.id}:${Date.now()}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversations'
+        },
+        (payload) => {
+          const nextConversationId =
+            typeof payload.new === 'object' &&
+            payload.new !== null &&
+            'id' in payload.new &&
+            typeof (payload.new as { id?: unknown }).id === 'string'
+              ? (payload.new as { id: string }).id
+              : null;
+
+          if (!nextConversationId || !threadIdsRef.current.has(nextConversationId)) {
+            return;
+          }
+
+          scheduleInboxRefresh();
+
+          if (nextConversationId === selectedThreadId) {
+            scheduleConversationRefresh();
+          }
+        }
+      )
       .on(
         'postgres_changes',
         {
@@ -232,6 +520,10 @@ export default function HomePage() {
           }
 
           scheduleInboxRefresh();
+
+          if (nextConversationId === selectedThreadId) {
+            scheduleConversationRefresh();
+          }
         }
       )
       .on(
@@ -246,6 +538,42 @@ export default function HomePage() {
           scheduleInboxRefresh();
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inquiry_form_submissions',
+          filter: `creator_id=eq.${user.id}`
+        },
+        () => {
+          scheduleInboxRefresh();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'instagram_account_connections',
+          filter: `creator_id=eq.${user.id}`
+        },
+        () => {
+          scheduleInboxRefresh();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'instagram_leads',
+          filter: `creator_id=eq.${user.id}`
+        },
+        () => {
+          scheduleInboxRefresh();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -254,9 +582,211 @@ export default function HomePage() {
         realtimeRefreshTimeoutRef.current = null;
       }
 
+      if (conversationRefreshTimeoutRef.current) {
+        clearTimeout(conversationRefreshTimeoutRef.current);
+        conversationRefreshTimeoutRef.current = null;
+      }
+
       void supabase.removeChannel(channel);
     };
-  }, [profileComplete, supabase, user?.id]);
+  }, [profileComplete, selectedThreadId, supabase, user?.id]);
+
+  useEffect(() => {
+    const nextInboxTab = searchParams.get('inboxTab');
+    const status = searchParams.get('status');
+    const message = searchParams.get('message');
+    const instagramUsername = searchParams.get('instagramUsername');
+
+    if (nextInboxTab === 'instagram') {
+      setInboxTab('instagram');
+    }
+
+    if (!status) {
+      return;
+    }
+
+    if (status === 'success') {
+      preserveFeedbackRef.current = true;
+      setFeedback(
+        instagramUsername
+          ? `Instagram connected as @${instagramUsername}.`
+          : 'Instagram connected.'
+      );
+      setInboxTab('instagram');
+    } else {
+      preserveFeedbackRef.current = true;
+      setFeedback(message || 'Instagram connect failed.');
+      setInboxTab('instagram');
+    }
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete('status');
+    nextParams.delete('message');
+    nextParams.delete('instagramUsername');
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `/?${nextQuery}` : '/');
+  }, [router, searchParams]);
+
+  useEffect(() => {
+    if (inboxTab === 'forms') {
+      setSelectedConversation(null);
+      setDraft('');
+
+      if (!visiblePendingFormSubmissions.length) {
+        if (selectedSubmissionId !== null) {
+          setSelectedSubmissionId(null);
+        }
+        return;
+      }
+
+      if (!selectedSubmissionId || !visiblePendingFormSubmissions.some((submission) => submission.id === selectedSubmissionId)) {
+        setSelectedSubmissionId(visiblePendingFormSubmissions[0].id);
+      }
+
+      return;
+    }
+
+    if (inboxTab === 'instagram') {
+      if (selectedThreadId !== null) {
+        setSelectedThreadId(null);
+      }
+      setSelectedConversation(null);
+      setDraft('');
+      return;
+    }
+
+    const nextThreads =
+      inboxTab === 'unread' ? visibleUnreadThreads : inboxTab === 'other' ? visibleOtherThreads : visibleAllThreads;
+
+    if (!nextThreads.length) {
+      if (selectedThreadId !== null) {
+        setSelectedThreadId(null);
+      }
+      setSelectedConversation(null);
+      setDraft('');
+      return;
+    }
+
+    if (!selectedThreadId || !nextThreads.some((thread) => thread.id === selectedThreadId)) {
+      setSelectedThreadId(nextThreads[0].id);
+    }
+  }, [
+    inboxTab,
+    selectedSubmissionId,
+    selectedThreadId,
+    visibleAllThreads,
+    visibleOtherThreads,
+    visiblePendingFormSubmissions,
+    visibleUnreadThreads
+  ]);
+
+  useEffect(() => {
+    if (!selectedThreadId || inboxTab === 'forms' || inboxTab === 'instagram') {
+      return;
+    }
+
+    void loadSelectedConversation(selectedThreadId, { showLoader: true });
+  }, [inboxTab, selectedThreadId, supabase, user?.id]);
+
+  useEffect(() => {
+    if (!activeParticipantId || !supabase) {
+      setSelectedParticipantProfile(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingParticipantProfile(true);
+
+    getPublicProfile(supabase, activeParticipantId)
+      .then((profile) => {
+        if (!cancelled) {
+          setSelectedParticipantProfile(profile);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSelectedParticipantProfile(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingParticipantProfile(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeParticipantId, supabase]);
+
+  useEffect(() => {
+    if (!supabase || !user || inboxTab !== 'instagram' || instagramConnection) {
+      return;
+    }
+
+    let cancelled = false;
+    setInstagramDebug(`direct tab query starting for creator_id ${user.id}`);
+
+    supabase
+      .from('instagram_account_connections')
+      .select(
+        'id, creator_id, instagram_user_id, instagram_username, instagram_profile_picture_url, status, last_synced_at, created_at, updated_at'
+      )
+      .eq('creator_id', user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (error) {
+          setInstagramDebug(`direct tab query error: ${error.message}`);
+          setFeedback(error.message);
+          return;
+        }
+
+        if (!data) {
+          setInstagramDebug(`direct tab query returned null for creator_id ${user.id}`);
+          return;
+        }
+
+        setInstagramDebug(`direct tab query found row ${data.id} for creator_id ${data.creator_id}`);
+        setInstagramConnection({
+          id: data.id,
+          creatorId: data.creator_id,
+          instagramUserId: data.instagram_user_id,
+          instagramUsername: data.instagram_username ?? undefined,
+          instagramProfilePictureUrl: data.instagram_profile_picture_url ?? undefined,
+          status: data.status,
+          lastSyncedAt: data.last_synced_at ?? undefined,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inboxTab, instagramConnection, supabase, user]);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+    setParticipantAvatarFailed(false);
+  }, [selectedConversation?.participantAvatar, activeParticipantFallbackAvatar, activeParticipantId]);
+
+  useEffect(() => {
+    if (!pendingAutoScrollRef.current) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      scrollPanelRef.current?.scrollTo({
+        top: scrollPanelRef.current.scrollHeight,
+        behavior: 'auto'
+      });
+      pendingAutoScrollRef.current = false;
+    });
+  }, [selectedConversation?.messages]);
 
   async function handleAuthSubmit() {
     if (!supabase) {
@@ -340,7 +870,9 @@ export default function HomePage() {
           displayName,
           niche: profileNiche.trim(),
           headline: profileHeadline.trim(),
-          dmAccess: profileDmAccess
+          dmAccess: profileDmAccess,
+          dmIntakePolicy: 'direct_message',
+          dmFeeUsd: 25
         });
       } else {
         await saveSupporterProfile(supabase, {
@@ -362,6 +894,14 @@ export default function HomePage() {
   }
 
   async function handleStartConversation(profile: DirectoryProfile) {
+    if (profile.role === 'creator') {
+      setComposeVisible(false);
+      setComposeSearch('');
+      setComposeResults([]);
+      router.push(`/profile/${profile.id}`);
+      return;
+    }
+
     if (!supabase || !user) {
       return;
     }
@@ -373,14 +913,15 @@ export default function HomePage() {
       const conversation = await createDirectConversation(supabase, {
         createdBy: user.id,
         counterpartUserId: profile.id,
-        subject: profile.role === 'creator' ? 'Creator outreach' : 'Direct message'
+        subject: 'Direct message'
       });
 
       setComposeVisible(false);
       setComposeSearch('');
       setComposeResults([]);
-      setThreads(await listInboxThreads(supabase, user.id));
-      router.push(`/thread/${conversation.id}`);
+      await loadViewerState(user.id);
+      setInboxTab('all');
+      setSelectedThreadId(conversation.id);
     } catch (error) {
       setFeedback(getErrorMessage(error));
     } finally {
@@ -388,29 +929,878 @@ export default function HomePage() {
     }
   }
 
-  function renderHeader() {
+  async function handleOpenInquirySubmission(submission: InquiryFormSubmission) {
+    if (!supabase || !user) {
+      return;
+    }
+
+    setOpeningSubmissionId(submission.id);
+    setFeedback(null);
+
+    try {
+      const conversationId = await openInquirySubmissionConversation(supabase, {
+        submissionId: submission.id
+      });
+
+      await loadViewerState(user.id);
+      setInboxTab('all');
+      setSelectedThreadId(conversationId);
+      setSelectedSubmissionId(null);
+    } catch (error) {
+      setFeedback(getErrorMessage(error));
+    } finally {
+      setOpeningSubmissionId(null);
+    }
+  }
+
+  async function handleConnectInstagram() {
+    if (!supabase || !user || typeof window === 'undefined') {
+      return;
+    }
+
+    setConnectingInstagram(true);
+    setFeedback(null);
+
+    try {
+      const redirectUrl = new URL(window.location.origin + window.location.pathname);
+      redirectUrl.searchParams.set('inboxTab', 'instagram');
+
+      const connectUrl = await startInstagramOAuth(supabase, {
+        redirectUri: redirectUrl.toString()
+      });
+
+      window.location.assign(connectUrl);
+    } catch (error) {
+      setFeedback(getErrorMessage(error));
+      setConnectingInstagram(false);
+    }
+  }
+
+  async function handleApproveRequest() {
+    if (!supabase || !selectedConversation?.canApproveRequest) {
+      return;
+    }
+
+    setApprovingRequest(true);
+    setFeedback(null);
+
+    try {
+      await approveConversationRequest(supabase, {
+        conversationId: selectedConversation.id
+      });
+
+      await Promise.all([
+        loadViewerState(user!.id),
+        loadSelectedConversation(selectedConversation.id, { showLoader: false })
+      ]);
+    } catch (error) {
+      setFeedback(getErrorMessage(error));
+    } finally {
+      setApprovingRequest(false);
+    }
+  }
+
+  async function handleSend() {
+    if (!supabase || !user || !selectedConversation) {
+      return;
+    }
+
+    const nextText = draft.trim();
+
+    if (!nextText || !selectedConversation.canSendMessage) {
+      return;
+    }
+
+    setSending(true);
+    setFeedback(null);
+    pendingAutoScrollRef.current = true;
+
+    try {
+      if (selectedConversation.canApproveRequest) {
+        await approveConversationRequest(supabase, {
+          conversationId: selectedConversation.id
+        });
+      }
+
+      await sendMessage(supabase, {
+        conversationId: selectedConversation.id,
+        senderId: user.id,
+        body: nextText
+      });
+
+      setDraft('');
+      await Promise.all([
+        loadViewerState(user.id),
+        loadSelectedConversation(selectedConversation.id, { showLoader: false })
+      ]);
+    } catch (error) {
+      setFeedback(getErrorMessage(error));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function toggleFormSubmissionExpanded(submissionId: string) {
+    setExpandedFormSubmissionIds((current) =>
+      current.includes(submissionId)
+        ? current.filter((id) => id !== submissionId)
+        : [...current, submissionId]
+    );
+  }
+
+  function renderHeader(wide = false) {
     return (
       <header className="shell-header">
-        <div className="shell-header-inner">
-          <div className="brand">
+        <div className={`shell-header-inner${wide ? ' shell-header-inner-wide' : ''}`}>
+          <div className="brand brand-wordmark">
             <BrandMark />
-            <span className="brand-name">Synchrolly</span>
           </div>
 
-          <button
-            className="settings-button"
-            type="button"
-            aria-label="Settings"
-            onClick={() => {
-              if (user) {
-                router.push('/settings');
-              }
-            }}
-          >
-            <Icon name="settings" />
-          </button>
+          {wide ? (
+            <nav className="desktop-header-nav" aria-label="Primary">
+              <a className="desktop-header-link" href="#">
+                Dashboard
+              </a>
+              <a className="desktop-header-link active" href="#">
+                Messages
+              </a>
+              <a className="desktop-header-link" href="#">
+                Analytics
+              </a>
+              <a className="desktop-header-link" href="#">
+                Schedule
+              </a>
+            </nav>
+          ) : null}
+
+          <div className="shell-header-actions">
+            {wide ? (
+              <div className="desktop-header-utility">
+                <button className="desktop-header-icon-button" type="button" aria-label="Notifications">
+                  <Icon name="notifications" />
+                </button>
+
+                <button
+                  className="desktop-header-icon-button"
+                  type="button"
+                  aria-label="Settings"
+                  onClick={() => {
+                    if (user) {
+                      router.push('/settings');
+                    }
+                  }}
+                >
+                  <Icon name="settings" />
+                </button>
+              </div>
+            ) : null}
+
+            {!wide ? (
+              <button className="settings-button" type="button" aria-label="Notifications">
+                <Icon name="notifications" />
+              </button>
+            ) : null}
+
+            {!wide ? (
+              <button
+                className="settings-button"
+                type="button"
+                aria-label="Settings"
+                onClick={() => {
+                  if (user) {
+                    router.push('/settings');
+                  }
+                }}
+              >
+                <Icon name="settings" />
+              </button>
+            ) : null}
+
+            {wide && viewerProfile ? (
+              <button
+                type="button"
+                className="desktop-header-profile-button"
+                aria-label="Open account settings"
+                onClick={() => router.push('/settings')}
+              >
+                <div className="desktop-header-avatar-frame">
+                  {viewerProfile.avatarUrl ? (
+                    <img src={viewerProfile.avatarUrl} alt={viewerProfile.displayName} className="desktop-header-avatar" />
+                  ) : (
+                    <span className="desktop-header-avatar-text">{viewerProfile.displayName.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+              </button>
+            ) : null}
+          </div>
         </div>
       </header>
+    );
+  }
+
+  function renderListThread(thread: InboxThreadSummary) {
+    const isSelected = inboxTab !== 'forms' && selectedThreadId === thread.id;
+
+    return (
+      <button
+        key={thread.id}
+        type="button"
+        className={`desktop-thread-row${thread.unread ? ' unread' : ''}${isSelected ? ' selected' : ''}`}
+        onClick={() => {
+          setSelectedThreadId(thread.id);
+          pendingAutoScrollRef.current = true;
+        }}
+      >
+        <div className="desktop-thread-avatar-wrap">
+          <div className="desktop-thread-avatar-frame">
+            {thread.participantAvatar ? (
+              <img src={thread.participantAvatar} alt={thread.participantName} className="desktop-thread-avatar" />
+            ) : (
+              <div className="desktop-thread-avatar-fallback">
+                <span>{thread.participantInitials}</span>
+              </div>
+            )}
+          </div>
+          {thread.unread ? <span className="desktop-thread-dot" /> : null}
+        </div>
+
+        <div className="desktop-thread-copy">
+          <div className="desktop-thread-top">
+            <div className="desktop-thread-title-wrap">
+              <h2 className={`desktop-thread-name${thread.unread ? ' unread' : ''}`}>{thread.participantName}</h2>
+              {thread.status === 'request' ? (
+                <span className="desktop-thread-status">{getRequestLabel(viewerProfile?.role)}</span>
+              ) : null}
+            </div>
+            <span className={`desktop-thread-time${thread.unread ? ' unread' : ''}`}>{thread.relativeTime}</span>
+          </div>
+
+          <p className={`desktop-thread-preview${thread.unread ? ' unread' : ''}`}>{thread.preview}</p>
+        </div>
+      </button>
+    );
+  }
+
+  function renderListSubmission(submission: InquiryFormSubmission) {
+    const isSelected = inboxTab === 'forms' && selectedSubmissionId === submission.id;
+    const isExpanded = expandedFormSubmissionIds.includes(submission.id);
+
+    return (
+      <div key={submission.id} className={`desktop-form-row${isSelected ? ' selected' : ''}`}>
+        <button
+          type="button"
+          className="desktop-form-row-main"
+          onClick={() => setSelectedSubmissionId(submission.id)}
+        >
+          <div className="desktop-thread-avatar-wrap">
+            <div className="desktop-thread-avatar-frame">
+              {submission.supporterAvatarUrl ? (
+                <img src={submission.supporterAvatarUrl} alt={submission.supporterName} className="desktop-thread-avatar" />
+              ) : (
+                <div className="desktop-thread-avatar-fallback">
+                  <span>{getInitials(submission.supporterName)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="desktop-thread-copy">
+            <div className="desktop-thread-top">
+              <div className="desktop-thread-title-wrap">
+                <h2 className="desktop-thread-name">{submission.supporterName}</h2>
+              </div>
+              <span className="desktop-thread-time">{formatTimeline(submission.createdAt)}</span>
+            </div>
+
+            <p className="desktop-thread-preview">
+              {submission.answers[0]?.answerText ?? 'Inquiry form submission'}
+            </p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="desktop-form-disclosure"
+          onClick={() => toggleFormSubmissionExpanded(submission.id)}
+          aria-label={isExpanded ? 'Collapse answers' : 'Expand answers'}
+        >
+          <Icon name="more" />
+        </button>
+
+        {isExpanded ? (
+          <div className="desktop-form-inline-preview">
+            {submission.answers.slice(0, 2).map((answer, index) => (
+              <div key={`${submission.id}-${index}`} className="desktop-form-inline-answer">
+                <span className="desktop-form-inline-label">Q{index + 1}</span>
+                <p>{answer.answerText}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderInstagramLead(lead: InstagramLeadSummary) {
+    return (
+      <div key={lead.id} className="desktop-instagram-row">
+        <div className="desktop-instagram-avatar">
+          {lead.profilePictureUrl ? (
+            <img src={lead.profilePictureUrl} alt={lead.displayName} className="desktop-instagram-avatar-image" />
+          ) : (
+            <span className="desktop-instagram-avatar-text">{getInitials(lead.displayName)}</span>
+          )}
+          {lead.unreadCount ? <span className="desktop-instagram-dot" /> : null}
+        </div>
+
+        <div className="desktop-instagram-copy">
+          <div className="desktop-instagram-top">
+            <div className="desktop-instagram-title-wrap">
+              <h2 className={`desktop-instagram-name${lead.unreadCount ? ' unread' : ''}`}>{lead.displayName}</h2>
+              <span className="desktop-instagram-status">{lead.leadStatus}</span>
+            </div>
+            <span className="desktop-instagram-time">{formatTimeline(lead.lastMessageAt)}</span>
+          </div>
+
+          <p className={`desktop-instagram-preview${lead.unreadCount ? ' unread' : ''}`}>{lead.lastMessageText}</p>
+
+          <div className="desktop-instagram-meta">
+            <span>{lead.instagramUsername ? `@${lead.instagramUsername}` : 'Instagram lead'}</span>
+            {lead.unreadCount ? <span className="desktop-instagram-unread">{lead.unreadCount}</span> : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderInboxList() {
+    if (inboxTab === 'forms') {
+      if (!visiblePendingFormSubmissions.length) {
+        return (
+          <div className="desktop-sidebar-empty">
+            <h2>No forms yet</h2>
+            <p>Pending inquiry submissions will show up here when supporters send them.</p>
+          </div>
+        );
+      }
+
+      return visiblePendingFormSubmissions.map(renderListSubmission);
+    }
+
+    if (inboxTab === 'instagram') {
+      if (!instagramConnection) {
+        return (
+          <div className="desktop-sidebar-empty desktop-instagram-empty">
+            <h2>Connect Instagram</h2>
+            <p>Finish Instagram business login here in the browser, then new leads will land in this lane.</p>
+            <button
+              type="button"
+              className="desktop-instagram-connect"
+              onClick={() => void handleConnectInstagram()}
+              disabled={connectingInstagram}
+            >
+              {connectingInstagram ? 'Opening Instagram...' : 'Connect Instagram'}
+            </button>
+            {instagramDebug ? <p className="desktop-instagram-debug">{instagramDebug}</p> : null}
+          </div>
+        );
+      }
+
+      if (!visibleInstagramLeads.length) {
+        return (
+          <div className="desktop-sidebar-empty desktop-instagram-empty">
+            <h2>Instagram connected</h2>
+            <p>
+              {instagramConnection.instagramUsername
+                ? `Connected as @${instagramConnection.instagramUsername}.`
+                : 'Your Instagram account is connected.'}
+            </p>
+            <button
+              type="button"
+              className="desktop-instagram-secondary"
+              onClick={() => void handleConnectInstagram()}
+              disabled={connectingInstagram}
+            >
+              {connectingInstagram ? 'Opening Instagram...' : 'Reconnect'}
+            </button>
+          </div>
+        );
+      }
+
+      return visibleInstagramLeads.map(renderInstagramLead);
+    }
+
+    const activeThreads =
+      inboxTab === 'unread' ? visibleUnreadThreads : inboxTab === 'other' ? visibleOtherThreads : visibleAllThreads;
+
+    if (!activeThreads.length) {
+      const body =
+        inboxTab === 'unread'
+          ? 'Unread accepted conversations will show up here.'
+          : inboxTab === 'other'
+            ? 'Request threads and future special states will live here.'
+            : 'Start a new thread and it will appear here.';
+
+      return (
+        <div className="desktop-sidebar-empty">
+          <h2>Nothing here yet</h2>
+          <p>{body}</p>
+        </div>
+      );
+    }
+
+    return activeThreads.map(renderListThread);
+  }
+
+  function renderInquirySubmissionMessage(message: ConversationMessage) {
+    if (message.kind !== 'inquiry_submission' || !message.inquirySubmissionCard) {
+      return (
+        <p className={`message-text ${message.isFromCreator ? 'outgoing' : 'incoming'}`}>{message.text}</p>
+      );
+    }
+
+    return (
+      <div className="web-inquiry-card">
+        <div className="web-inquiry-card-header">
+          <span className="web-inquiry-card-badge">Form intake</span>
+          <span className="web-inquiry-card-meta">{formatSubmissionCardTime(message.inquirySubmissionCard.submittedAt)}</span>
+        </div>
+
+        <h3 className="web-inquiry-card-title">{message.inquirySubmissionCard.formTitle}</h3>
+        <p className="web-inquiry-card-body">{message.inquirySubmissionCard.supporterName} answered your inquiry form.</p>
+
+        <div className="web-inquiry-answer-stack">
+          {message.inquirySubmissionCard.answers.map((answer, index) => (
+            <div key={`${message.id}-${index}`} className="web-inquiry-answer-row">
+              <span className="web-inquiry-answer-label">Question {index + 1}</span>
+              <p className="web-inquiry-answer-prompt">{answer.questionPrompt}</p>
+              <p className="web-inquiry-answer-value">{answer.answerText}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function renderConversationPanel() {
+    if (inboxTab === 'forms') {
+      if (!selectedSubmission) {
+        return (
+          <section className="desktop-message-panel empty">
+            <div className="desktop-message-empty">
+              <h2>Select a form submission</h2>
+              <p>Pick a pending form on the left to review it and decide whether to reply in DM.</p>
+            </div>
+          </section>
+        );
+      }
+
+      const isOpening = openingSubmissionId === selectedSubmission.id;
+
+      return (
+        <section className="desktop-message-panel">
+          <header className="desktop-conversation-header">
+            <div className="desktop-conversation-title-group">
+              <h2 className="desktop-conversation-title">{selectedSubmission.supporterName}</h2>
+              <span className="desktop-conversation-pill">Pending form</span>
+            </div>
+            <span className="desktop-conversation-subtitle">{formatTimeline(selectedSubmission.createdAt)}</span>
+          </header>
+
+          <div className="desktop-form-review-body">
+            <div className="desktop-form-review-card">
+              <div className="desktop-form-review-kicker">Inquiry intake</div>
+              <h3 className="desktop-form-review-title">Submission answers</h3>
+              <p className="desktop-form-review-body-copy">
+                Review the supporter&apos;s responses, then open a DM thread to continue the conversation.
+              </p>
+
+              <div className="desktop-form-review-answers">
+                {selectedSubmission.answers.map((answer, index) => (
+                  <div key={answer.id} className="desktop-form-review-answer">
+                    <span className="desktop-form-review-label">Question {index + 1}</span>
+                    <p className="desktop-form-review-prompt">{answer.questionPrompt}</p>
+                    <p className="desktop-form-review-value">{answer.answerText}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="desktop-form-review-actions">
+              <button
+                type="button"
+                className="compose-button desktop-primary-button"
+                onClick={() => void handleOpenInquirySubmission(selectedSubmission)}
+                disabled={isOpening}
+              >
+                {isOpening ? <span className="button-spinner" aria-hidden="true" /> : <Icon name="send" />}
+                <span>{isOpening ? 'Opening...' : 'Reply in DM'}</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (inboxTab === 'instagram') {
+      return (
+        <section className="desktop-message-panel">
+          <header className="desktop-conversation-header">
+            <div className="desktop-conversation-title-group">
+              <h2 className="desktop-conversation-title">Instagram Leads</h2>
+              <span className="desktop-conversation-pill">
+                {instagramConnection ? 'Connected' : 'Browser flow'}
+              </span>
+            </div>
+          </header>
+
+          <div className="desktop-form-review-body">
+            <div className="desktop-form-review-card">
+              <div className="desktop-form-review-kicker">Instagram lane</div>
+              <h3 className="desktop-form-review-title">
+                {instagramConnection ? 'Connection is live' : 'Connect inside the browser'}
+              </h3>
+              <p className="desktop-form-review-body-copy">
+                {instagramConnection
+                  ? 'This flow now runs completely in the browser. Once Instagram approves the connection, this lane will refresh and future DMs will land here without going through your native inbox.'
+                  : 'Use the Connect Instagram button on the left. The OAuth flow will stay in the browser, return here, and then Syncrolly will read the saved connection from Supabase.'}
+              </p>
+              {instagramDebug ? <p className="desktop-instagram-debug">{instagramDebug}</p> : null}
+
+              <div className="desktop-instagram-summary-grid">
+                <div className="desktop-instagram-summary-card">
+                  <span className="desktop-instagram-summary-label">Connection</span>
+                  <strong className="desktop-instagram-summary-value">
+                    {instagramConnection ? 'Active' : 'Not connected'}
+                  </strong>
+                </div>
+                <div className="desktop-instagram-summary-card">
+                  <span className="desktop-instagram-summary-label">Leads</span>
+                  <strong className="desktop-instagram-summary-value">{instagramLeads.length}</strong>
+                </div>
+                <div className="desktop-instagram-summary-card">
+                  <span className="desktop-instagram-summary-label">Unread</span>
+                  <strong className="desktop-instagram-summary-value">
+                    {instagramLeads.reduce((sum, lead) => sum + lead.unreadCount, 0)}
+                  </strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (loadingConversation && !selectedConversation) {
+      return (
+        <section className="desktop-message-panel empty">
+          <div className="center-stage compact">
+            <div className="spinner" aria-hidden="true" />
+            <p className="stage-body">Loading conversation...</p>
+          </div>
+        </section>
+      );
+    }
+
+    if (!selectedConversation) {
+      return (
+        <section className="desktop-message-panel empty">
+          <div className="desktop-message-empty">
+            <h2>Select a conversation</h2>
+            <p>Choose a thread from the left to read messages and reply here.</p>
+          </div>
+        </section>
+      );
+    }
+
+    const requestBannerTitle = selectedConversation.canApproveRequest
+      ? 'Message request'
+      : selectedConversation.canSendMessage
+        ? 'Send your first request'
+        : 'Pending approval';
+    const requestBannerBody = selectedConversation.canApproveRequest
+      ? 'Approve this request to move the conversation into the active inbox, or reply to approve it automatically.'
+      : selectedConversation.canSendMessage
+        ? 'This creator gates access. Your first message will be sent as a request for approval.'
+        : 'Your request has been sent. You can send more messages after the creator approves the conversation.';
+    const composerPlaceholder = !selectedConversation.canSendMessage
+      ? 'Waiting for creator approval...'
+      : selectedConversation.status === 'request'
+        ? 'Send your request...'
+        : 'Write a message...';
+
+    return (
+      <section className="desktop-message-panel">
+        <header className="desktop-conversation-header">
+          <div className="desktop-conversation-title-group">
+            <h2 className="desktop-conversation-title">{selectedConversation.participantName}</h2>
+            <span className="desktop-conversation-pill">
+              {selectedConversation.status === 'request'
+                ? selectedConversation.statusLabel
+                : selectedParticipantProfile?.role === 'creator'
+                  ? 'Creator'
+                  : 'Direct thread'}
+            </span>
+          </div>
+
+          <div className="desktop-conversation-actions">
+            <button type="button" className="icon-button subtle" aria-label="Start video call">
+              <Icon name="camera" />
+            </button>
+            <button type="button" className="icon-button subtle" aria-label="Conversation options">
+              <Icon name="more" />
+            </button>
+          </div>
+        </header>
+
+        <div ref={scrollPanelRef} className="desktop-message-scroll">
+          <div className="desktop-message-stack">
+            {selectedConversation.status === 'request' ? (
+              <div className="request-banner">
+                <div className="request-banner-header">
+                  <span className="request-badge">{selectedConversation.statusLabel}</span>
+                  {selectedConversation.canApproveRequest ? (
+                    <button
+                      type="button"
+                      className="request-approve-button"
+                      onClick={() => void handleApproveRequest()}
+                      disabled={approvingRequest}
+                    >
+                      {approvingRequest ? <span className="button-spinner" aria-hidden="true" /> : 'Approve'}
+                    </button>
+                  ) : null}
+                </div>
+
+                <h2 className="request-banner-title">{requestBannerTitle}</h2>
+                <p className="request-banner-body">{requestBannerBody}</p>
+              </div>
+            ) : null}
+
+            {feedback ? <p className="feedback-inline">{feedback}</p> : null}
+
+            {selectedConversation.messages.map((message) => (
+              <div key={message.id} className="message-block">
+                {message.dayLabel ? (
+                  <div className="day-pill-wrap">
+                    <div className="day-pill">
+                      <span className="day-pill-text">{message.dayLabel.toUpperCase()}</span>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className={`message-row ${message.isFromCreator ? 'outgoing' : 'incoming'}`}>
+                  <div
+                    className={`message-bubble ${message.isFromCreator ? 'outgoing' : 'incoming'}${
+                      message.kind === 'inquiry_submission' ? ' inquiry' : ''
+                    }`}
+                  >
+                    {renderInquirySubmissionMessage(message)}
+                  </div>
+
+                  <div className={`message-meta-row ${message.isFromCreator ? 'outgoing' : ''}`}>
+                    <span className="message-meta-text">{message.timeLabel}</span>
+                    {message.isFromCreator ? <span className="message-meta-check">✓✓</span> : null}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="desktop-thread-composer">
+          <button type="button" className="media-button" aria-label="Attach camera content">
+            <Icon name="camera" />
+          </button>
+          <button type="button" className="media-button" aria-label="Attach image">
+            <Icon name="image" />
+          </button>
+
+          <input
+            className={`thread-input${!selectedConversation.canSendMessage ? ' disabled' : ''}`}
+            type="text"
+            value={draft}
+            disabled={!selectedConversation.canSendMessage}
+            onChange={(event) => setDraft(event.target.value)}
+            onFocus={() => {
+              pendingAutoScrollRef.current = true;
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                void handleSend();
+              }
+            }}
+            placeholder={composerPlaceholder}
+          />
+
+          <button
+            type="button"
+            className={`send-button${!draft.trim() || sending || !selectedConversation.canSendMessage ? ' disabled' : ''}`}
+            onClick={() => void handleSend()}
+            disabled={!draft.trim() || sending || !selectedConversation.canSendMessage}
+            aria-label="Send message"
+          >
+            {sending ? <span className="button-spinner" aria-hidden="true" /> : <Icon name="send" />}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  function renderProfileSidebar() {
+    if (inboxTab === 'instagram') {
+      return (
+        <aside className="desktop-profile-panel">
+          <div className="desktop-profile-card desktop-instagram-profile-card">
+            <div className="desktop-instagram-profile-badge">Instagram</div>
+            <h2 className="desktop-profile-name">
+              {instagramConnection?.instagramUsername ? `@${instagramConnection.instagramUsername}` : 'Browser connect'}
+            </h2>
+            <p className="desktop-profile-role">
+              {instagramConnection
+                ? 'Leads stay separate from your main Syncrolly DMs.'
+                : 'Connect once in the browser, then refresh this tab.'}
+            </p>
+          </div>
+
+          <div className="desktop-profile-section">
+            <span className="desktop-profile-section-label">Status</span>
+            <p className="desktop-profile-section-body">
+              {instagramConnection
+                ? `Connected${instagramConnection.lastSyncedAt ? ` and last synced ${formatTimeline(instagramConnection.lastSyncedAt)}` : '.'}`
+                : 'No Instagram account is connected yet.'}
+            </p>
+            {instagramDebug ? <p className="desktop-instagram-debug">{instagramDebug}</p> : null}
+          </div>
+
+          <div className="desktop-profile-action-row">
+            <button
+              type="button"
+              className="desktop-profile-cta"
+              onClick={() => void handleConnectInstagram()}
+              disabled={connectingInstagram}
+            >
+              {connectingInstagram ? 'Opening Instagram...' : instagramConnection ? 'Reconnect' : 'Connect Instagram'}
+            </button>
+          </div>
+        </aside>
+      );
+    }
+
+    if (!activeParticipantId && !selectedConversation && !selectedSubmission) {
+      return (
+        <aside className="desktop-profile-panel empty">
+          <div className="desktop-profile-empty">
+            <h2>No profile selected</h2>
+            <p>Open a conversation or form on the left to see who you&apos;re talking to.</p>
+          </div>
+        </aside>
+      );
+    }
+
+    const profile = selectedParticipantProfile;
+    const roleLine =
+      profile?.role === 'creator'
+        ? profile.creatorProfile?.headline || profile.creatorProfile?.niche || 'Creator'
+        : activeParticipantFallbackRole || 'Supporter';
+    const avatarUrl = !participantAvatarFailed ? profile?.avatarUrl ?? activeParticipantFallbackAvatar : undefined;
+    const profileName = profile?.displayName ?? activeParticipantFallbackName;
+    const aboutText =
+      profile?.bio ||
+      (profile?.role === 'creator'
+        ? profile.creatorProfile?.headline || 'Creator profile'
+        : inboxTab === 'forms'
+          ? 'Submitted an inquiry form and is waiting for your review.'
+          : 'Part of your inbox.');
+
+    return (
+      <aside className="desktop-profile-panel">
+        <div className="desktop-profile-card">
+          <div className="desktop-profile-avatar-frame">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={profileName}
+                className="desktop-profile-avatar"
+                onError={() => setParticipantAvatarFailed(true)}
+              />
+            ) : (
+              <span className="desktop-profile-avatar-text">{getInitials(profileName)}</span>
+            )}
+          </div>
+
+          <h2 className="desktop-profile-name">{profileName}</h2>
+          <p className="desktop-profile-role">{roleLine}</p>
+
+          <div className="desktop-profile-stats">
+            <div className="desktop-profile-stat">
+              <div className="desktop-profile-stat-value">
+                {selectedThread ? selectedThread.accessLabel : profile?.presence ?? 'Live'}
+              </div>
+              <div className="desktop-profile-stat-label">Access</div>
+            </div>
+            <div className="desktop-profile-stat">
+              <div className="desktop-profile-stat-value">
+                {inboxTab === 'forms' ? 'Pending' : selectedThread?.unread ? 'Unread' : 'Open'}
+              </div>
+              <div className="desktop-profile-stat-label">Thread</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="desktop-profile-section">
+          <span className="desktop-profile-section-label">About</span>
+          <p className="desktop-profile-section-body">{loadingParticipantProfile ? 'Loading profile...' : aboutText}</p>
+        </div>
+
+        {profile?.role === 'creator' && profile.creatorProfile ? (
+          <div className="desktop-profile-section">
+            <span className="desktop-profile-section-label">Creator Focus</span>
+            <p className="desktop-profile-section-body">
+              {profile.creatorProfile.niche || profile.creatorProfile.headline || 'No creator focus added yet.'}
+            </p>
+          </div>
+        ) : null}
+
+        {activeParticipantId ? (
+          <div className="desktop-profile-action-row">
+            <button
+              type="button"
+              className="desktop-profile-cta"
+              onClick={() => router.push(`/profile/${activeParticipantId}`)}
+            >
+              Open profile
+            </button>
+
+            {profile?.role === 'creator' ? (
+              <button
+                type="button"
+                className="desktop-profile-cta secondary"
+                onClick={() => router.push(`/profile/${activeParticipantId}/form`)}
+              >
+                Open form
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="desktop-profile-section">
+          <div className="desktop-profile-section-header">
+            <span className="desktop-profile-section-label">Shared Media</span>
+            <button type="button" className="desktop-profile-link-button">
+              View All
+            </button>
+          </div>
+
+          <div className="desktop-shared-media-grid">
+            <div className="desktop-shared-media-card media-one" />
+            <div className="desktop-shared-media-card media-two" />
+            <div className="desktop-shared-media-wide">
+              <span>Inquiry_Overview.pdf</span>
+            </div>
+          </div>
+        </div>
+      </aside>
     );
   }
 
@@ -629,78 +2019,98 @@ export default function HomePage() {
 
   return (
     <div className="syncrolly-page">
-      {renderHeader()}
+      {renderHeader(true)}
 
-      <main className="page-main">
-        <div className="page-heading-row">
-          <h1 className="page-title">Inbox</h1>
+      <main className="desktop-inbox-main">
+        <section className="desktop-inbox-shell">
+          <aside className="desktop-inbox-sidebar">
+            <div className="desktop-sidebar-header">
+              <div className="desktop-sidebar-top-row">
+                <label className="search-field desktop-search-field">
+                  <Icon name="search" />
+                  <input
+                    type="search"
+                    value={searchValue}
+                    onChange={(event) => setSearchValue(event.target.value)}
+                    placeholder={
+                      inboxTab === 'forms'
+                        ? 'Search forms...'
+                        : inboxTab === 'instagram'
+                          ? 'Search Instagram leads...'
+                        : inboxTab === 'unread'
+                          ? 'Search unread...'
+                          : inboxTab === 'other'
+                            ? 'Search other...'
+                            : 'Search conversations...'
+                    }
+                  />
+                </label>
 
-          <button type="button" className="compose-button" onClick={() => setComposeVisible(true)}>
-            <Icon name="compose" />
-            <span>New Message</span>
-          </button>
-        </div>
-
-        <label className="search-field">
-          <Icon name="search" />
-          <input
-            type="search"
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Search conversations..."
-          />
-        </label>
-
-        {feedback ? <p className="feedback-inline">{feedback}</p> : null}
-
-        <section className="thread-list" aria-label="Conversation list">
-          {visibleThreads.length ? (
-            visibleThreads.map((thread, index) => {
-              const isLast = index === visibleThreads.length - 1;
-
-              return (
                 <button
-                  key={thread.id}
                   type="button"
-                  className={`thread-row ${thread.unread ? 'unread' : 'read'}`}
-                  onClick={() => router.push(`/thread/${thread.id}`)}
+                  className="desktop-compose-icon-button"
+                  onClick={() => setComposeVisible(true)}
+                  aria-label="New message"
                 >
-                  <div className="thread-avatar-wrap">
-                    <div className="thread-avatar-frame">
-                      {thread.participantAvatar ? (
-                        <img src={thread.participantAvatar} alt={thread.participantName} className="thread-avatar" />
-                      ) : (
-                        <div className="thread-avatar-fallback">
-                          <span>{thread.participantInitials}</span>
-                        </div>
-                      )}
-                    </div>
-                    {thread.unread ? <span className="thread-dot" /> : null}
-                  </div>
-
-                  <div className={`thread-copy ${!thread.unread && !isLast ? 'thread-copy-divider' : ''}`}>
-                    <div className="thread-top-row">
-                      <h2 className={`thread-name ${thread.unread ? 'unread' : ''}`}>{thread.participantName}</h2>
-                      <span className={`thread-time ${thread.unread ? 'unread' : ''}`}>{thread.relativeTime}</span>
-                    </div>
-
-                    <p className={`thread-preview ${thread.unread ? 'unread' : 'read'}`}>{thread.preview}</p>
-                  </div>
+                  <Icon name="compose" />
                 </button>
-              );
-            })
-          ) : (
-            <div className="empty-card">
-              <h2 className="empty-card-title">No conversations yet</h2>
-              <p className="empty-card-body">Start a new thread and we&apos;ll save every message to Supabase from here on out.</p>
+              </div>
+
+              <div className="desktop-tab-row" role="tablist" aria-label="Inbox tabs">
+                {([
+                  { key: 'all' as const, label: 'All' },
+                  {
+                    key: 'unread' as const,
+                    label: unreadAcceptedThreads.length ? `Unread (${unreadAcceptedThreads.length})` : 'Unread'
+                  },
+                  {
+                    key: 'forms' as const,
+                    label: pendingFormSubmissions.length ? `Forms (${pendingFormSubmissions.length})` : 'Forms'
+                  },
+                  {
+                    key: 'instagram' as const,
+                    label: instagramLeads.length ? `Instagram (${instagramLeads.length})` : 'Instagram'
+                  },
+                  { key: 'other' as const, label: 'Other' }
+                ]).map((item) => {
+                  const isActive = inboxTab === item.key;
+
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      className={`desktop-tab-button${isActive ? ' active' : ''}`}
+                      onClick={() => setInboxTab(item.key)}
+                    >
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          )}
+
+            {feedback ? <p className="feedback-inline">{feedback}</p> : null}
+
+            <div className="desktop-thread-list" aria-label="Conversation list">
+              {renderInboxList()}
+            </div>
+          </aside>
+
+          {renderConversationPanel()}
+          {renderProfileSidebar()}
         </section>
       </main>
 
       {composeVisible ? (
         <div className="modal-backdrop" role="presentation">
-          <button type="button" className="modal-backdrop-button" aria-label="Close new message" onClick={() => setComposeVisible(false)} />
+          <button
+            type="button"
+            className="modal-backdrop-button"
+            aria-label="Close new message"
+            onClick={() => setComposeVisible(false)}
+          />
           <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="new-message-title">
             <div className="modal-header">
               <h2 className="modal-title" id="new-message-title">
@@ -735,19 +2145,25 @@ export default function HomePage() {
                       key={profile.id}
                       type="button"
                       className="result-row"
-                      onClick={() => handleStartConversation(profile)}
+                      onClick={() => void handleStartConversation(profile)}
                       disabled={isCreating}
                     >
                       <div className="result-avatar" style={{ backgroundColor: `${profile.accentColor}18` }}>
-                        <span className="result-avatar-text" style={{ color: profile.accentColor }}>
-                          {profile.displayName.charAt(0).toUpperCase()}
-                        </span>
+                        {profile.avatarUrl ? (
+                          <img src={profile.avatarUrl} alt={profile.displayName} className="brand-avatar" />
+                        ) : (
+                          <span className="result-avatar-text" style={{ color: profile.accentColor }}>
+                            {profile.displayName.charAt(0).toUpperCase()}
+                          </span>
+                        )}
                       </div>
 
                       <div className="result-copy">
                         <p className="result-name">{profile.displayName}</p>
                         <p className="result-meta">
-                          {profile.role === 'creator' ? 'Creator' : 'Supporter'} - {profile.presence}
+                          {profile.role === 'creator'
+                            ? `Creator - open profile`
+                            : `Supporter - ${profile.presence}`}
                         </p>
                       </div>
 

@@ -23,6 +23,7 @@ This repo now has the first persistence scaffold for Syncrolly:
    - `supabase/migrations/20260416_direct_conversation_rpc.sql`
    - `supabase/migrations/20260416_realtime_publication.sql`
    - `supabase/migrations/20260416_push_devices.sql`
+   - `supabase/migrations/20260416_message_requests.sql`
 3. Copy the project URL and publishable key into:
    - `apps/mobile/.env`
    - `apps/web/.env.local`
@@ -53,6 +54,24 @@ This repo now includes a Supabase Edge Function scaffold at `supabase/functions/
 2. Keep the mobile app on a development build with push permissions granted.
 
 The shared `sendMessage()` flow will attempt to invoke `notify-new-message` after the database insert succeeds. If the function is not deployed yet, messaging still works and only the push dispatch is skipped.
+
+## Voice assistant
+
+The mobile app now also includes an Expo-friendly push-to-talk assistant prototype:
+
+- the client records a short voice note with `expo-audio`
+- `supabase/functions/voice-assistant/index.ts` transcribes it with OpenAI
+- the function generates a short reply and returns AI speech audio for playback
+
+To enable it:
+
+1. Set the Supabase Edge Function secret:
+   - `OPENAI_API_KEY`
+2. Deploy the function:
+   - `supabase functions deploy voice-assistant`
+3. Restart the mobile dev server after the new route and `expo-audio` plugin changes.
+
+This version is intentionally not realtime yet. It is designed to work as a first push-to-talk slice inside the current Expo app, with a later upgrade path to realtime voice.
 
 ## Suggested next implementation slice
 
