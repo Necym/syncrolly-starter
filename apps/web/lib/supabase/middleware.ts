@@ -1,13 +1,17 @@
 import type { Database } from '@syncrolly/data';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireWebSupabaseEnv } from './env';
+import { getWebSupabaseEnv } from './env';
 
 export async function updateSession(request: NextRequest) {
-  const env = requireWebSupabaseEnv();
+  const env = getWebSupabaseEnv();
   let response = NextResponse.next({
     request
   });
+
+  if (!env) {
+    return response;
+  }
 
   const supabase = createServerClient<Database>(env.url, env.publishableKey, {
     cookies: {
@@ -30,7 +34,11 @@ export async function updateSession(request: NextRequest) {
     }
   });
 
-  await supabase.auth.getClaims();
+  try {
+    await supabase.auth.getClaims();
+  } catch {
+    // A transient auth refresh issue should not take down the public app shell.
+  }
 
   return response;
 }
