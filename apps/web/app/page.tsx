@@ -1994,22 +1994,111 @@ function HomePageContent() {
                 </a>
               </div>
 
-              <div className="welcome-stats" aria-label="Syncrolly metrics">
-                <div>
-                  <strong>10k+</strong>
-                  <span>Active creators</span>
+              <div className="welcome-capability-strip" aria-label="Syncrolly capabilities">
+                <div className="welcome-capability-card">
+                  <span className="welcome-capability-icon profile" aria-hidden="true">
+                    <svg viewBox="0 0 32 32">
+                      <rect x="6" y="5" width="20" height="22" rx="4" />
+                      <circle cx="16" cy="13" r="3.5" />
+                      <path d="M10.5 22c1.2-3 3-4.5 5.5-4.5s4.3 1.5 5.5 4.5" />
+                      <path d="M22.5 8.5h5M25 6v5" />
+                    </svg>
+                  </span>
+                  <strong>Customizable Profile Builder</strong>
+                  <div className="welcome-capability-preview profile-preview" aria-hidden="true">
+                    <div className="mini-cover" />
+                    <div className="mini-profile-row">
+                      <span />
+                      <div>
+                        <i />
+                        <i />
+                      </div>
+                    </div>
+                    <div className="mini-profile-blocks">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <strong>1M+</strong>
-                  <span>Fan connections</span>
+
+                <div className="welcome-capability-card">
+                  <span className="welcome-capability-icon messaging" aria-hidden="true">
+                    <svg viewBox="0 0 32 32">
+                      <path d="M6 9.5A4.5 4.5 0 0 1 10.5 5h11A4.5 4.5 0 0 1 26 9.5v6A4.5 4.5 0 0 1 21.5 20H16l-6 5v-5.2A4.5 4.5 0 0 1 6 15.4z" />
+                      <path d="M11 11.5h10M11 15h6" />
+                    </svg>
+                  </span>
+                  <strong>Fan & Client Messaging</strong>
+                  <div className="welcome-capability-preview messaging-preview" aria-hidden="true">
+                    <div className="mini-inbox-row active">
+                      <span />
+                      <div>
+                        <i />
+                        <i />
+                      </div>
+                    </div>
+                    <div className="mini-chat-bubble incoming" />
+                    <div className="mini-chat-bubble outgoing" />
+                  </div>
                 </div>
-                <div>
-                  <strong>$50M</strong>
-                  <span>Creator revenue</span>
+
+                <div className="welcome-capability-card">
+                  <span className="welcome-capability-icon forms" aria-hidden="true">
+                    <svg viewBox="0 0 32 32">
+                      <rect x="7" y="4.5" width="18" height="23" rx="4" />
+                      <path d="M12 11h8M12 16h8M12 21h5" />
+                      <path d="M22.5 21.5 25 24l4-5" />
+                    </svg>
+                  </span>
+                  <strong>AI-Powered Intake Forms</strong>
+                  <div className="welcome-capability-preview forms-preview" aria-hidden="true">
+                    <div className="mini-form-progress">
+                      <span />
+                    </div>
+                    <i />
+                    <i />
+                    <div className="mini-form-option selected" />
+                    <div className="mini-form-option" />
+                  </div>
                 </div>
-                <div>
-                  <strong>99.9%</strong>
-                  <span>Uptime reliability</span>
+
+                <div className="welcome-capability-card">
+                  <span className="welcome-capability-icon content" aria-hidden="true">
+                    <svg viewBox="0 0 32 32">
+                      <path d="M6 10.5 16 5l10 5.5-10 5.5z" />
+                      <path d="M6 16.5 16 22l10-5.5" />
+                      <path d="M6 22.5 16 28l10-5.5" />
+                    </svg>
+                  </span>
+                  <strong>Content Delivery</strong>
+                  <div className="welcome-capability-preview content-preview" aria-hidden="true">
+                    <div className="mini-video-card">
+                      <span />
+                    </div>
+                    <div className="mini-lesson-row done" />
+                    <div className="mini-lesson-row" />
+                  </div>
+                </div>
+
+                <div className="welcome-capability-card">
+                  <span className="welcome-capability-icon monetization" aria-hidden="true">
+                    <svg viewBox="0 0 32 32">
+                      <rect x="5" y="8" width="22" height="16" rx="4" />
+                      <circle cx="16" cy="16" r="4" />
+                      <path d="M10 13v6M22 13v6" />
+                    </svg>
+                  </span>
+                  <strong>Monetization</strong>
+                  <div className="welcome-capability-preview monetization-preview" aria-hidden="true">
+                    <div className="mini-revenue">$245</div>
+                    <div className="mini-revenue-line">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                    <div className="mini-paywall-row" />
+                  </div>
                 </div>
               </div>
             </div>
