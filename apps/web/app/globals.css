@@ -6069,6 +6069,12 @@ body.syncrolly-body {
   border: 1px solid #424753;
 }
 
+.quiz-secondary-button.compact {
+  min-height: 42px;
+  padding: 0 16px;
+  font-size: 0.85rem;
+}
+
 .quiz-previous-button:disabled,
 .quiz-continue-button:disabled {
   opacity: 0.45;
