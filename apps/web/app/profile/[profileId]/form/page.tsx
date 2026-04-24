@@ -64,7 +64,7 @@ export default function PublicInquiryFormPage() {
   const [profile, setProfile] = useState<ViewerProfile | null>(null);
   const [form, setForm] = useState<InquiryForm | null>(null);
   const [answers, setAnswers] = useState<AnswerState>({});
-  const [visibleQuestionCount, setVisibleQuestionCount] = useState(1);
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const [loadingForm, setLoadingForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -106,7 +106,7 @@ export default function PublicInquiryFormPage() {
         setForm(nextForm);
         setAnswers({});
         setSubmitted(false);
-        setVisibleQuestionCount(1);
+        setActiveQuestionIndex(0);
       } catch (error) {
         if (!cancelled) {
           setFeedback(getErrorMessage(error, 'Something went wrong while loading this inquiry form.'));
@@ -137,15 +137,17 @@ export default function PublicInquiryFormPage() {
 
   const progressPercent = form?.questions.length ? Math.round((answeredCount / form.questions.length) * 100) : 0;
   const allQuestionsComplete = Boolean(form?.questions.length && answeredCount === form.questions.length);
+  const isReviewStep = Boolean(form && activeQuestionIndex >= form.questions.length);
+  const currentQuestion = form?.questions[activeQuestionIndex] ?? null;
+  const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
+  const currentQuestionComplete = currentQuestion ? isAnswerComplete(currentQuestion, currentAnswer) : allQuestionsComplete;
+  const stepPercent = form?.questions.length
+    ? isReviewStep
+      ? 100
+      : Math.round(((activeQuestionIndex + 1) / form.questions.length) * 100)
+    : 0;
 
-  function revealNext(questionIndex: number) {
-    setVisibleQuestionCount((current) => {
-      const nextCount = Math.min((form?.questions.length ?? 0), questionIndex + 2);
-      return Math.max(current, nextCount);
-    });
-  }
-
-  function handleChoiceAnswer(question: InquiryFormQuestion, questionIndex: number, optionId: string, label: string) {
+  function handleChoiceAnswer(question: InquiryFormQuestion, optionId: string, label: string) {
     setAnswers((current) => ({
       ...current,
       [question.id]: {
@@ -153,21 +155,31 @@ export default function PublicInquiryFormPage() {
         optionId
       }
     }));
-
-    revealNext(questionIndex);
   }
 
-  function handleTextAnswer(question: InquiryFormQuestion, questionIndex: number, value: string) {
+  function handleTextAnswer(question: InquiryFormQuestion, value: string) {
     setAnswers((current) => ({
       ...current,
       [question.id]: {
         value
       }
     }));
+  }
 
-    if (isAnswerComplete(question, { value })) {
-      revealNext(questionIndex);
+  function handlePreviousQuestion() {
+    if (!form) {
+      return;
     }
+
+    setActiveQuestionIndex((current) => Math.max(0, current - 1));
+  }
+
+  function handleContinueQuestion() {
+    if (!form || !currentQuestionComplete) {
+      return;
+    }
+
+    setActiveQuestionIndex((current) => Math.min(form.questions.length, current + 1));
   }
 
   async function handleSubmit() {
@@ -298,35 +310,50 @@ export default function PublicInquiryFormPage() {
 
   if (submitted) {
     return (
-      <div className="thread-page">
-        <header className="public-route-header-shell">
-          <div className="public-route-header">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
+      <div className="quiz-page">
+        <header className="quiz-topbar">
+          <div className="quiz-topbar-inner">
+            <button type="button" className="quiz-brand" onClick={handleBack}>
+              <BrandMark />
+              <span>Syncrolly</span>
             </button>
+
+            <nav className="quiz-nav" aria-label="Inquiry sections">
+              <span>Profile</span>
+              <span className="active">Inquiry</span>
+              <span>Messages</span>
+            </nav>
+
+            <div className="quiz-topbar-actions">
+              <button type="button" className="quiz-icon-button" aria-label="Notifications">
+                <Icon name="notifications" />
+              </button>
+              <div className="quiz-avatar">{getInitials(profile.displayName)}</div>
+            </div>
           </div>
         </header>
 
-        <main className="public-form-main">
-          <div className="public-form-shell success">
-            <section className="public-form-success-card">
-              <span className="public-form-kicker">Inquiry sent</span>
+        <main className="quiz-main">
+          <div className="quiz-glow" aria-hidden="true" />
+          <section className="quiz-success-card">
+            <span className="quiz-kicker">Inquiry sent</span>
+            <div>
               <h1>Almost there.</h1>
               <p>
                 {feedback ??
                   `${profile.displayName} can now review your answers from their Forms tab and decide whether to open a DM.`}
               </p>
+            </div>
 
-              <div className="public-form-success-actions">
-                <button type="button" className="public-profile-primary-button" onClick={() => router.push('/')}>
-                  Back to inbox
-                </button>
-                <button type="button" className="public-profile-secondary-button" onClick={handleBack}>
-                  Back to profile
-                </button>
-              </div>
-            </section>
-          </div>
+            <div className="quiz-success-actions">
+              <button type="button" className="quiz-continue-button" onClick={() => router.push('/')}>
+                Back to inbox
+              </button>
+              <button type="button" className="quiz-secondary-button" onClick={handleBack}>
+                Back to profile
+              </button>
+            </div>
+          </section>
         </main>
 
         <BottomNav activeKey="inbox" />
@@ -335,141 +362,153 @@ export default function PublicInquiryFormPage() {
   }
 
   return (
-    <div className="thread-page">
-      <header className="public-route-header-shell">
-        <div className="public-route-header">
-          <div className="public-route-header-left">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
-            </button>
-
-            <div className="brand brand-wordmark">
-              <BrandMark />
-            </div>
-          </div>
-
-          <button type="button" className="public-route-link" onClick={() => router.push(`/profile/${resolvedProfileId}`)}>
-            View profile
+    <div className="quiz-page">
+      <header className="quiz-topbar">
+        <div className="quiz-topbar-inner">
+          <button type="button" className="quiz-brand" onClick={handleBack}>
+            <BrandMark />
+            <span>Syncrolly</span>
           </button>
+
+          <nav className="quiz-nav" aria-label="Inquiry sections">
+            <button type="button" onClick={() => router.push(`/profile/${resolvedProfileId}`)}>
+              Profile
+            </button>
+            <span className="active">Inquiry</span>
+            <button type="button" onClick={() => router.push('/')}>
+              Messages
+            </button>
+          </nav>
+
+          <div className="quiz-topbar-actions">
+            <button type="button" className="quiz-icon-button" aria-label="Notifications">
+              <Icon name="notifications" />
+            </button>
+            <div className="quiz-avatar">{getInitials(profile.displayName)}</div>
+          </div>
         </div>
       </header>
 
-      <main className="public-form-main">
-        <div className="public-form-shell">
-          <aside className="public-form-sidebar">
-            <span className="public-form-kicker">Curated Inquiry</span>
-            <h1>{form.title}</h1>
-            <p className="public-form-intro">{form.intro || 'A thoughtful intake before the conversation starts.'}</p>
-
-            <div className="public-form-creator-chip">
-              <div className="public-form-creator-avatar">{getInitials(profile.displayName)}</div>
-              <div className="public-form-creator-copy">
-                <strong>{profile.displayName}</strong>
-                <span>{profile.creatorProfile?.headline || profile.creatorProfile?.niche || 'Creator'}</span>
-              </div>
+      <main className="quiz-main">
+        <div className="quiz-glow" aria-hidden="true" />
+        <section className="quiz-stage">
+          <div className="quiz-progress-header">
+            <div className="quiz-progress-meta">
+              <span>
+                {isReviewStep ? 'Final review' : `Question ${activeQuestionIndex + 1} of ${form.questions.length}`}
+              </span>
+              <span>{stepPercent}% Completed</span>
             </div>
 
-            <div className="public-form-progress-card">
-              <div className="public-form-progress-header">
-                <span>Progress</span>
-                <strong>{progressPercent}%</strong>
-              </div>
-
-              <div className="public-form-progress-track">
-                <div className="public-form-progress-fill" style={{ width: `${progressPercent}%` }} />
-              </div>
-
-              <p>{answeredCount} of {form.questions.length} questions answered</p>
+            <div className="quiz-progress-track">
+              <div className="quiz-progress-fill" style={{ width: `${stepPercent}%` }} />
             </div>
-          </aside>
+          </div>
 
-          <section className="public-form-flow">
-            {form.questions.map((question, index) => {
-              if (index >= visibleQuestionCount) {
-                return null;
-              }
+          {isReviewStep ? (
+            <section className="quiz-summary-card">
+              <span className="quiz-kicker">Summary</span>
+              <div className="quiz-question-copy">
+                <h1>Your answers</h1>
+                <p>
+                  Review what {profile.displayName} will see before you send this inquiry. {progressPercent}% of the
+                  form is complete.
+                </p>
+              </div>
 
-              const answer = answers[question.id];
-              const isComplete = isAnswerComplete(question, answer);
-
-              return (
-                <article key={question.id} className={`public-form-question-card${isComplete ? ' complete' : ''}`}>
-                  <div className="public-form-question-header">
-                    <span className="public-form-question-step">Question {index + 1}</span>
-                    <h2>{question.prompt}</h2>
-                    <p>{getQuestionHelper(question)}</p>
+              <div className="quiz-summary-list">
+                {form.questions.map((question, index) => (
+                  <div key={question.id} className="quiz-summary-row">
+                    <span>Question {index + 1}</span>
+                    <strong>{question.prompt}</strong>
+                    <p>{getAnswerValue(answers[question.id]) || 'Waiting for a response'}</p>
                   </div>
+                ))}
+              </div>
 
-                  {question.type === 'multiple_choice' ? (
-                    <div className="public-form-options">
-                      {question.options.map((option) => {
-                        const isSelected = answer?.optionId === option.id;
+              {feedback ? <p className="feedback-inline quiz-feedback">{feedback}</p> : null}
+            </section>
+          ) : currentQuestion ? (
+            <section className="quiz-question-panel" key={currentQuestion.id}>
+              <div className="quiz-question-copy">
+                <span className="quiz-kicker">{form.title}</span>
+                <h1>{currentQuestion.prompt}</h1>
+                <p>{currentQuestion.placeholder || form.intro || getQuestionHelper(currentQuestion)}</p>
+              </div>
 
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            className={`public-form-option${isSelected ? ' selected' : ''}`}
-                            onClick={() => handleChoiceAnswer(question, index, option.id, option.label)}
-                          >
-                            <span>{option.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : question.type === 'short_text' ? (
-                    <input
-                      className="public-form-input"
-                      type="text"
-                      value={answer?.value ?? ''}
-                      onChange={(event) => handleTextAnswer(question, index, event.target.value)}
-                      placeholder={question.placeholder || 'Type a short answer'}
-                    />
-                  ) : (
-                    <textarea
-                      className="public-form-textarea"
-                      value={answer?.value ?? ''}
-                      onChange={(event) => handleTextAnswer(question, index, event.target.value)}
-                      placeholder={question.placeholder || 'Share more detail here'}
-                      rows={6}
-                    />
-                  )}
-                </article>
-              );
-            })}
+              {currentQuestion.type === 'multiple_choice' ? (
+                <div className="quiz-option-stack">
+                  {currentQuestion.options.map((option) => {
+                    const isSelected = currentAnswer?.optionId === option.id;
 
-            {visibleQuestionCount >= form.questions.length ? (
-              <section className="public-form-summary-card">
-                <span className="public-form-question-step">Summary</span>
-                <h2>Your answers</h2>
-
-                <div className="public-form-summary-list">
-                  {form.questions.map((question, index) => (
-                    <div key={question.id} className="public-form-summary-row">
-                      <span>Question {index + 1}</span>
-                      <strong>{question.prompt}</strong>
-                      <p>{getAnswerValue(answers[question.id]) || 'Waiting for a response'}</p>
-                    </div>
-                  ))}
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={`quiz-option${isSelected ? ' selected' : ''}`}
+                        onClick={() => handleChoiceAnswer(currentQuestion, option.id, option.label)}
+                      >
+                        <span>{option.label}</span>
+                        {isSelected ? <span className="quiz-option-check" aria-hidden="true" /> : null}
+                      </button>
+                    );
+                  })}
                 </div>
+              ) : currentQuestion.type === 'short_text' ? (
+                <input
+                  className="quiz-input"
+                  type="text"
+                  value={currentAnswer?.value ?? ''}
+                  onChange={(event) => handleTextAnswer(currentQuestion, event.target.value)}
+                  placeholder={currentQuestion.placeholder || 'Type a short answer'}
+                />
+              ) : (
+                <textarea
+                  className="quiz-textarea"
+                  value={currentAnswer?.value ?? ''}
+                  onChange={(event) => handleTextAnswer(currentQuestion, event.target.value)}
+                  placeholder={currentQuestion.placeholder || 'Share more detail here'}
+                  rows={7}
+                />
+              )}
+            </section>
+          ) : null}
 
-                {feedback ? <p className="feedback-inline public-profile-feedback">{feedback}</p> : null}
+          <div className="quiz-footer">
+            <button
+              type="button"
+              className="quiz-previous-button"
+              onClick={handlePreviousQuestion}
+              disabled={activeQuestionIndex === 0 || submitting}
+            >
+              <span aria-hidden="true">&lt;-</span>
+              Previous
+            </button>
 
-                <div className="public-form-submit-row">
-                  <button
-                    type="button"
-                    className="public-profile-primary-button"
-                    onClick={() => void handleSubmit()}
-                    disabled={!allQuestionsComplete || submitting}
-                  >
-                    {submitting ? <span className="button-spinner" aria-hidden="true" /> : null}
-                    <span>{submitting ? 'Sending...' : 'Send inquiry'}</span>
-                  </button>
-                </div>
-              </section>
-            ) : null}
-          </section>
-        </div>
+            {isReviewStep ? (
+              <button
+                type="button"
+                className="quiz-continue-button"
+                onClick={() => void handleSubmit()}
+                disabled={!allQuestionsComplete || submitting}
+              >
+                {submitting ? <span className="button-spinner" aria-hidden="true" /> : null}
+                <span>{submitting ? 'Sending...' : 'Send inquiry'}</span>
+                <span aria-hidden="true">-&gt;</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="quiz-continue-button"
+                onClick={handleContinueQuestion}
+                disabled={!currentQuestionComplete || submitting}
+              >
+                Continue
+                <span aria-hidden="true">-&gt;</span>
+              </button>
+            )}
+          </div>
+        </section>
       </main>
 
       <BottomNav activeKey="inbox" />
