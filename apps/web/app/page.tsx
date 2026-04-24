@@ -31,7 +31,7 @@ import {
   sendMessage
 } from '@syncrolly/data';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { getDefaultDisplayName, getPreferredRole, useWebSession } from '../lib/session';
 import { BottomNav, BrandMark, Icon, getErrorMessage } from './ui';
@@ -126,6 +126,25 @@ function formatSubmissionCardTime(value: string): string {
 }
 
 export default function HomePage() {
+  return (
+    <Suspense fallback={<HomePageFallback />}>
+      <HomePageContent />
+    </Suspense>
+  );
+}
+
+function HomePageFallback() {
+  return (
+    <main className="center-stage-page">
+      <div className="center-stage">
+        <div className="spinner" aria-hidden="true" />
+        <p className="stage-body">Loading messages...</p>
+      </div>
+    </main>
+  );
+}
+
+function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: sessionLoading, supabase, isConfigured } = useWebSession();
@@ -841,6 +860,84 @@ export default function HomePage() {
     } finally {
       setAuthSubmitting(false);
     }
+  }
+
+  function handleWelcomeAuth(nextMode: AuthMode) {
+    setAuthMode(nextMode);
+    window.requestAnimationFrame(() => {
+      document.getElementById('welcome-auth')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    });
+  }
+
+  function renderWelcomeAuthCard() {
+    return (
+      <section className="auth-card welcome-auth-card">
+        <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
+          <button
+            type="button"
+            className={`auth-tab${authMode === 'sign-in' ? ' active' : ''}`}
+            onClick={() => setAuthMode('sign-in')}
+          >
+            <span className={`auth-tab-text${authMode === 'sign-in' ? ' active' : ''}`}>Sign In</span>
+          </button>
+          <button
+            type="button"
+            className={`auth-tab${authMode === 'sign-up' ? ' active' : ''}`}
+            onClick={() => setAuthMode('sign-up')}
+          >
+            <span className={`auth-tab-text${authMode === 'sign-up' ? ' active' : ''}`}>Create Account</span>
+          </button>
+        </div>
+
+        <LabeledField label="Email">
+          <input
+            className="text-input"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+          />
+        </LabeledField>
+
+        <LabeledField label="Password">
+          <input
+            className="text-input"
+            type="password"
+            autoComplete={authMode === 'sign-in' ? 'current-password' : 'new-password'}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="********"
+          />
+        </LabeledField>
+
+        {authMode === 'sign-up' ? (
+          <>
+            <LabeledField label="Display name">
+              <input
+                className="text-input"
+                type="text"
+                value={authDisplayName}
+                onChange={(event) => setAuthDisplayName(event.target.value)}
+                placeholder="Your name or brand"
+              />
+            </LabeledField>
+
+            <RolePicker role={authRole} onChange={setAuthRole} />
+          </>
+        ) : null}
+
+        {feedback ? <p className="feedback-text">{feedback}</p> : null}
+
+        <button type="button" className="primary-action" onClick={handleAuthSubmit} disabled={authSubmitting}>
+          {authSubmitting ? <span className="button-spinner" aria-hidden="true" /> : null}
+          <span>{authMode === 'sign-in' ? 'Sign In' : 'Create Account'}</span>
+        </button>
+      </section>
+    );
   }
 
   async function handleCompleteProfile() {
@@ -1834,89 +1931,165 @@ export default function HomePage() {
 
   if (!user) {
     return (
-      <div className="syncrolly-page">
-        {renderHeader()}
-        <main className="auth-shell">
-          <div className="auth-content">
-            <section className="auth-hero">
-              <p className="auth-eyebrow">Direct access for creator businesses</p>
-              <h1 className="auth-title">Sign in to your inbox</h1>
-              <p className="auth-body">
-                Use your creator or supporter account to access real conversations, saved profiles, and the shared
-                web/mobile data layer.
-              </p>
-            </section>
+      <div className="welcome-page">
+        <nav className="welcome-nav">
+          <div className="welcome-nav-inner">
+            <a className="welcome-brand" href="#welcome-top" aria-label="Syncrolly home">
+              <span className="welcome-brand-mark" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
+              <span>Syncrolly</span>
+            </a>
 
-            <section className="auth-card">
-              <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-                <button
-                  type="button"
-                  className={`auth-tab${authMode === 'sign-in' ? ' active' : ''}`}
-                  onClick={() => setAuthMode('sign-in')}
-                >
-                  <span className={`auth-tab-text${authMode === 'sign-in' ? ' active' : ''}`}>Sign In</span>
-                </button>
-                <button
-                  type="button"
-                  className={`auth-tab${authMode === 'sign-up' ? ' active' : ''}`}
-                  onClick={() => setAuthMode('sign-up')}
-                >
-                  <span className={`auth-tab-text${authMode === 'sign-up' ? ' active' : ''}`}>Create Account</span>
-                </button>
+            <div className="welcome-nav-links" aria-label="Welcome page sections">
+              <a href="#solutions">Solutions</a>
+              <a href="#platform">Platform</a>
+              <a href="#pricing">Pricing</a>
+              <a href="#about">About</a>
+            </div>
+
+            <div className="welcome-nav-actions">
+              <button type="button" className="welcome-login-button" onClick={() => handleWelcomeAuth('sign-in')}>
+                Login
+              </button>
+              <button type="button" className="welcome-small-cta" onClick={() => handleWelcomeAuth('sign-up')}>
+                Get Started
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        <main id="welcome-top" className="welcome-main">
+          <section className="welcome-hero">
+            <div className="welcome-hero-glow welcome-hero-glow-blue" />
+            <div className="welcome-hero-glow welcome-hero-glow-purple" />
+
+            <div className="welcome-hero-content">
+              <div className="welcome-badge">
+                <span />
+                <strong>The Future of Creator Operations</strong>
               </div>
 
-              <LabeledField label="Email">
-                <input
-                  className="text-input"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@example.com"
-                />
-              </LabeledField>
+              <h1>
+                The Ultimate <span>Creator Ecosystem</span>
+              </h1>
 
-              <LabeledField label="Password">
-                <input
-                  className="text-input"
-                  type="password"
-                  autoComplete={authMode === 'sign-in' ? 'current-password' : 'new-password'}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="********"
-                />
-              </LabeledField>
+              <p>
+                Unify your workflow. From first message to forms, scheduling, programs, and monetization, Syncrolly is
+                the operating layer behind your creator business.
+              </p>
 
-              {authMode === 'sign-up' ? (
-                <>
-                  <LabeledField label="Display name">
-                    <input
-                      className="text-input"
-                      type="text"
-                      value={authDisplayName}
-                      onChange={(event) => setAuthDisplayName(event.target.value)}
-                      placeholder="Your name or brand"
-                    />
-                  </LabeledField>
+              <div className="welcome-hero-actions">
+                <button type="button" className="welcome-primary-cta" onClick={() => handleWelcomeAuth('sign-up')}>
+                  Start Building Free
+                  <span aria-hidden="true">→</span>
+                </button>
+                <a className="welcome-secondary-cta" href="#platform">
+                  <span aria-hidden="true">▶</span>
+                  Watch Demo
+                </a>
+              </div>
 
-                  <RolePicker role={authRole} onChange={setAuthRole} />
-                </>
-              ) : null}
+              <div className="welcome-stats" aria-label="Syncrolly metrics">
+                <div>
+                  <strong>10k+</strong>
+                  <span>Active creators</span>
+                </div>
+                <div>
+                  <strong>1M+</strong>
+                  <span>Fan connections</span>
+                </div>
+                <div>
+                  <strong>$50M</strong>
+                  <span>Creator revenue</span>
+                </div>
+                <div>
+                  <strong>99.9%</strong>
+                  <span>Uptime reliability</span>
+                </div>
+              </div>
+            </div>
+          </section>
 
-              {feedback ? <p className="feedback-text">{feedback}</p> : null}
+          <section id="platform" className="welcome-pipeline-section">
+            <div className="welcome-section-heading">
+              <h2>The Unified Pipeline</h2>
+              <p>A seamless flow designed to maximize your time, attention, and revenue.</p>
+            </div>
 
-              <button
-                type="button"
-                className="primary-action"
-                onClick={handleAuthSubmit}
-                disabled={authSubmitting}
-              >
-                {authSubmitting ? <span className="button-spinner" aria-hidden="true" /> : null}
-                <span>{authMode === 'sign-in' ? 'Sign In' : 'Create Account'}</span>
-              </button>
-            </section>
-          </div>
+            <div id="solutions" className="welcome-pipeline-grid">
+              <article className="welcome-pipeline-card blue">
+                <div className="welcome-card-corner" />
+                <div className="welcome-card-icon">↗</div>
+                <h3>1. Engage</h3>
+                <p>Build your audience with direct connection tools, branded profiles, and an inbox designed for real relationships.</p>
+                <div className="welcome-card-visual welcome-engage-visual">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </article>
+
+              <article className="welcome-pipeline-card purple">
+                <div className="welcome-card-corner" />
+                <div className="welcome-card-icon">▣</div>
+                <h3>2. Schedule</h3>
+                <p>Turn qualified replies into booked calls with structured intake, review flows, and calendar-ready call invitations.</p>
+                <div className="welcome-card-visual welcome-schedule-visual">
+                  {Array.from({ length: 21 }).map((_, index) => (
+                    <span key={index} className={index === 9 ? 'active' : ''} />
+                  ))}
+                </div>
+              </article>
+
+              <article className="welcome-pipeline-card green">
+                <div className="welcome-card-corner" />
+                <div className="welcome-card-icon">$</div>
+                <h3>3. Monetize</h3>
+                <p>Package paid access, programs, forms, and creator services into one clean system your supporters can act on.</p>
+                <div className="welcome-card-visual welcome-money-visual">
+                  <strong>+$2,450</strong>
+                  <span>Today&apos;s Revenue</span>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section id="pricing" className="welcome-auth-section">
+            <div className="welcome-auth-copy">
+              <p>Start here</p>
+              <h2>Sign in or create your creator workspace.</h2>
+              <span>
+                This connects to the same Supabase auth flow we already use for messages, forms, profiles, and programs.
+              </span>
+            </div>
+            <div id="welcome-auth">{renderWelcomeAuthCard()}</div>
+          </section>
         </main>
+
+        <footer id="about" className="welcome-footer">
+          <div className="welcome-footer-brand">
+            <span className="welcome-brand-mark mini" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+            <strong>Syncrolly</strong>
+          </div>
+          <div className="welcome-footer-links">
+            <a href="#about">Privacy</a>
+            <a href="#about">Terms</a>
+            <a href="#about">Security</a>
+            <a href="#about">Careers</a>
+          </div>
+          <p>© 2026 Syncrolly. Creator operations in one precise flow.</p>
+        </footer>
       </div>
     );
   }

@@ -12,6 +12,7 @@ import {
 } from '@syncrolly/core';
 import {
   createProfilePost,
+  deleteProfilePost,
   getViewerProfile,
   listProfilePosts,
   saveCreatorProfile,
@@ -21,10 +22,11 @@ import {
   uploadProfilePageAsset
 } from '@syncrolly/data';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -37,6 +39,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AmbientBackground from '../../components/AmbientBackground';
 import {
   buildStarterCreatorPageBlocks,
   createCtaBlock,
@@ -133,6 +136,10 @@ function getInitials(name: string): string {
 }
 
 function getCtaLabelPresets(actionType: CreatorProfileCtaActionType) {
+  if (actionType === 'direct_message') {
+    return ['Message me', 'DM me', 'Start chat'];
+  }
+
   if (actionType === 'form') {
     return ['Apply now', 'Start intake', 'Send inquiry'];
   }
@@ -165,9 +172,6 @@ function CoverPlaceholder() {
         start={{ x: 0.14, y: 0.18 }}
         style={styles.coverOrb}
       />
-      <View style={styles.coverOrbBand} />
-      <View style={styles.coverOrbShadow} />
-      <View style={styles.coverOrbRim} />
     </View>
   );
 }
@@ -206,12 +210,14 @@ function GradientButton({
   children,
   disabled,
   contentStyle,
+  fullWidth = true,
   onPress,
   style
 }: {
   children: ReactNode;
   disabled?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  fullWidth?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -221,7 +227,7 @@ function GradientButton({
         colors={theme.gradients.brand}
         end={{ x: 1, y: 1 }}
         start={{ x: 0, y: 0 }}
-        style={[styles.gradientButtonFill, contentStyle]}
+        style={[fullWidth ? styles.gradientButtonFill : styles.gradientButtonFillAuto, contentStyle]}
       >
         {children}
       </LinearGradient>
@@ -273,7 +279,9 @@ function PostCard({
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ setupApplied?: string | string[] }>();
   const { user, loading: sessionLoading, supabase, isConfigured } = useMobileSession();
+  const setupApplied = Array.isArray(params.setupApplied) ? params.setupApplied[0] : params.setupApplied;
   const [viewerProfile, setViewerProfile] = useState<ViewerProfile | null>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
   const [loadingScreen, setLoadingScreen] = useState(false);
@@ -282,6 +290,7 @@ export default function ProfileScreen() {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingPageAssetKey, setUploadingPageAssetKey] = useState<string | null>(null);
   const [creatingPost, setCreatingPost] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [offerIconPickerTarget, setOfferIconPickerTarget] = useState<OfferIconPickerTarget>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('sign-in');
@@ -391,7 +400,7 @@ export default function ProfileScreen() {
     }
 
     void loadScreen();
-  }, [supabase, user?.id]);
+  }, [setupApplied, supabase, user?.id]);
 
   async function persistProfileChanges(overrides?: {
     avatarUrl?: string;
@@ -865,6 +874,45 @@ export default function ProfileScreen() {
     }
   }
 
+  function handleConfirmDeletePost(postId: string) {
+    Alert.alert('Remove post?', 'This will remove the media post from your profile.', [
+      {
+        text: 'Cancel',
+        style: 'cancel'
+      },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => void handleDeletePost(postId)
+      }
+    ]);
+  }
+
+  async function handleDeletePost(postId: string) {
+    if (!supabase || !user || !isProfileOwner) {
+      return;
+    }
+
+    const previousPosts = posts;
+
+    setDeletingPostId(postId);
+    setFeedback(null);
+    setPosts((current) => current.filter((post) => post.id !== postId));
+
+    try {
+      await deleteProfilePost(supabase, {
+        postId,
+        userId: user.id
+      });
+      setFeedback('Post removed.');
+    } catch (error) {
+      setPosts(previousPosts);
+      setFeedback(getErrorMessage(error));
+    } finally {
+      setDeletingPostId(null);
+    }
+  }
+
   async function handleSignOut() {
     if (!supabase) {
       return;
@@ -910,9 +958,12 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar style="light" />
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Profile</Text>
-          <Text style={styles.emptyBody}>Add your Supabase keys in `apps/mobile/.env` to load the real profile.</Text>
+        <View style={styles.screen}>
+          <AmbientBackground />
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Profile</Text>
+            <Text style={styles.emptyBody}>Add your Supabase keys in `apps/mobile/.env` to load the real profile.</Text>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -922,9 +973,12 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar style="light" />
-        <View style={styles.emptyState}>
-          <ActivityIndicator size="small" color={theme.colors.primaryStrong} />
-          <Text style={styles.emptyBody}>Loading your creator studio...</Text>
+        <View style={styles.screen}>
+          <AmbientBackground />
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="small" color={theme.colors.primaryStrong} />
+            <Text style={styles.emptyBody}>Loading your creator studio...</Text>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -934,12 +988,14 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar style="light" />
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Profile</Text>
-          <Text style={styles.emptyBody}>
-            Sign in to Syncrolly to create and manage your profile. You can do it right here.
-          </Text>
-          <View style={styles.authCard}>
+        <View style={styles.screen}>
+          <AmbientBackground />
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Profile</Text>
+            <Text style={styles.emptyBody}>
+              Sign in to Syncrolly to create and manage your profile. You can do it right here.
+            </Text>
+            <View style={styles.authCard}>
             <View style={styles.authModeRow}>
               <Pressable
                 onPress={() => setAuthMode('sign-in')}
@@ -1021,7 +1077,8 @@ export default function ProfileScreen() {
               )}
             </GradientButton>
           </View>
-          {feedback ? <Text style={styles.emptyStateFeedback}>{feedback}</Text> : null}
+            {feedback ? <Text style={styles.emptyStateFeedback}>{feedback}</Text> : null}
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -1031,19 +1088,22 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar style="light" />
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Profile</Text>
-          <Text style={styles.emptyBody}>
-            We found your Syncrolly account, but this profile screen did not finish loading your profile yet.
-          </Text>
-          <GradientButton
-            onPress={() => void loadScreen()}
-            style={[styles.saveButton, styles.authSubmitButton]}
-            contentStyle={styles.authSubmitButtonInner}
-          >
-            <Text style={styles.saveButtonText}>Retry profile setup</Text>
-          </GradientButton>
-          {feedback ? <Text style={styles.emptyStateFeedback}>{feedback}</Text> : null}
+        <View style={styles.screen}>
+          <AmbientBackground />
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Profile</Text>
+            <Text style={styles.emptyBody}>
+              We found your Syncrolly account, but this profile screen did not finish loading your profile yet.
+            </Text>
+            <GradientButton
+              onPress={() => void loadScreen()}
+              style={[styles.saveButton, styles.authSubmitButton]}
+              contentStyle={styles.authSubmitButtonInner}
+            >
+              <Text style={styles.saveButtonText}>Retry profile setup</Text>
+            </GradientButton>
+            {feedback ? <Text style={styles.emptyStateFeedback}>{feedback}</Text> : null}
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -1060,6 +1120,9 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="light" />
+
+      <View style={styles.screen}>
+        <AmbientBackground />
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileShell}>
@@ -1091,62 +1154,64 @@ export default function ProfileScreen() {
           </Pressable>
 
           <View style={styles.profileBody}>
-            <Pressable
-              disabled={!isProfileOwner || uploadingAvatar}
-              onPress={isProfileOwner ? handleChooseAvatar : undefined}
-              style={styles.avatarRow}
-            >
-              <View style={[styles.avatarFrame, uploadingAvatar && styles.avatarFrameUploading]}>
-                {viewerProfile.avatarUrl ? (
-                  <Image source={{ uri: viewerProfile.avatarUrl }} style={styles.avatarImage} />
-                ) : (
-                  <Text style={styles.avatarFallback}>{getInitials(displayName || viewerProfile.displayName)}</Text>
-                )}
-              </View>
-
-              {uploadingAvatar ? (
-                <View pointerEvents="none" style={styles.avatarLoading}>
-                  <ActivityIndicator size="small" color={theme.colors.primaryStrong} />
+            <View style={styles.profileHeaderRow}>
+              <Pressable
+                disabled={!isProfileOwner || uploadingAvatar}
+                onPress={isProfileOwner ? handleChooseAvatar : undefined}
+                style={styles.avatarRow}
+              >
+                <View style={[styles.avatarFrame, uploadingAvatar && styles.avatarFrameUploading]}>
+                  {viewerProfile.avatarUrl ? (
+                    <Image source={{ uri: viewerProfile.avatarUrl }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarFallback}>{getInitials(displayName || viewerProfile.displayName)}</Text>
+                  )}
                 </View>
-              ) : null}
-            </Pressable>
 
-            <View style={styles.profileIdentity}>
-              <Text style={styles.profileTag}>{profileTag}</Text>
+                {uploadingAvatar ? (
+                  <View pointerEvents="none" style={styles.avatarLoading}>
+                    <ActivityIndicator size="small" color={theme.colors.primaryStrong} />
+                  </View>
+                ) : null}
+              </Pressable>
 
-              <View style={styles.nameRow}>
-                {editingName && isProfileOwner ? (
-                  <TextInput
-                    autoFocus
-                    blurOnSubmit
-                    onBlur={() => {
-                      void handleInlineProfileCommit('name');
-                    }}
-                    onSubmitEditing={() => {
-                      void handleInlineProfileCommit('name');
-                    }}
-                    value={displayName}
-                    onChangeText={setDisplayName}
-                    placeholder="Display name"
-                    placeholderTextColor={theme.colors.textMuted}
-                    style={styles.nameInput}
-                  />
-                ) : (
-                  <Pressable
-                    disabled={!isProfileOwner}
-                    onPress={() => {
-                      if (!isProfileOwner) {
-                        return;
-                      }
+              <View style={styles.profileIdentity}>
+                <Text style={styles.profileTag}>{profileTag}</Text>
 
-                      setEditingBio(false);
-                      setEditingName(true);
-                    }}
-                    style={styles.inlineEditTarget}
-                  >
-                    <Text style={styles.profileName}>{displayName || viewerProfile.displayName}</Text>
-                  </Pressable>
-                )}
+                <View style={styles.nameRow}>
+                  {editingName && isProfileOwner ? (
+                    <TextInput
+                      autoFocus
+                      blurOnSubmit
+                      onBlur={() => {
+                        void handleInlineProfileCommit('name');
+                      }}
+                      onSubmitEditing={() => {
+                        void handleInlineProfileCommit('name');
+                      }}
+                      value={displayName}
+                      onChangeText={setDisplayName}
+                      placeholder="Display name"
+                      placeholderTextColor={theme.colors.textMuted}
+                      style={styles.nameInput}
+                    />
+                  ) : (
+                    <Pressable
+                      disabled={!isProfileOwner}
+                      onPress={() => {
+                        if (!isProfileOwner) {
+                          return;
+                        }
+
+                        setEditingBio(false);
+                        setEditingName(true);
+                      }}
+                      style={styles.inlineEditTarget}
+                    >
+                      <Text style={styles.profileName}>{displayName || viewerProfile.displayName}</Text>
+                    </Pressable>
+                  )}
+                </View>
               </View>
             </View>
 
@@ -1204,20 +1269,31 @@ export default function ProfileScreen() {
               Build the mobile landing page your leads see first. This structure is saved so we can mirror it on web later.
             </Text>
 
+            <Pressable style={styles.setupStudioCard} onPress={() => router.push('/creator-onboarding')}>
+              <View style={styles.setupStudioIconWrap}>
+                <Ionicons name="sparkles-outline" size={18} color="#ffffff" />
+              </View>
+              <View style={styles.setupStudioCopy}>
+                <Text style={styles.setupStudioTitle}>Creator Setup Studio</Text>
+                <Text style={styles.setupStudioBody}>Answer a few questions and generate your profile blocks, CTA, and messaging settings.</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={18} color={theme.colors.textSecondary} />
+            </Pressable>
+
             <View style={styles.builderAddRow}>
-              <GradientButton style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('video')}>
+              <GradientButton fullWidth={false} style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('video')}>
                 <Ionicons name="play-circle-outline" size={16} color="#ffffff" />
                 <Text style={styles.builderAddButtonText}>Video</Text>
               </GradientButton>
-              <GradientButton style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('offers')}>
+              <GradientButton fullWidth={false} style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('offers')}>
                 <Ionicons name="grid-outline" size={16} color="#ffffff" />
                 <Text style={styles.builderAddButtonText}>Offers</Text>
               </GradientButton>
-              <GradientButton style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('cta')}>
+              <GradientButton fullWidth={false} style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('cta')}>
                 <Ionicons name="arrow-forward-circle-outline" size={16} color="#ffffff" />
                 <Text style={styles.builderAddButtonText}>CTA</Text>
               </GradientButton>
-              <GradientButton style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('media_posts')}>
+              <GradientButton fullWidth={false} style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('media_posts')}>
                 <Ionicons name="images-outline" size={16} color="#ffffff" />
                 <Text style={styles.builderAddButtonText}>Media posts</Text>
               </GradientButton>
@@ -1492,13 +1568,28 @@ export default function ProfileScreen() {
                                 ) : null}
 
                                 <View style={styles.builderMediaPostMetaRow}>
-                                  <View style={styles.builderMediaPostLikePill}>
-                                    <Ionicons
-                                      name={post.likedByViewer ? 'heart' : 'heart-outline'}
-                                      size={13}
-                                      color={post.likedByViewer ? '#e2547b' : theme.colors.textMuted}
-                                    />
-                                    <Text style={styles.builderMediaPostLikeText}>{post.likeCount}</Text>
+                                  <View style={styles.builderMediaPostMetaActions}>
+                                    <View style={styles.builderMediaPostLikePill}>
+                                      <Ionicons
+                                        name={post.likedByViewer ? 'heart' : 'heart-outline'}
+                                        size={13}
+                                        color={post.likedByViewer ? '#e2547b' : theme.colors.textMuted}
+                                      />
+                                      <Text style={styles.builderMediaPostLikeText}>{post.likeCount}</Text>
+                                    </View>
+
+                                    <Pressable
+                                      disabled={deletingPostId === post.id}
+                                      hitSlop={8}
+                                      onPress={() => handleConfirmDeletePost(post.id)}
+                                      style={styles.builderMediaPostDeleteButton}
+                                    >
+                                      {deletingPostId === post.id ? (
+                                        <ActivityIndicator size="small" color="#f87171" />
+                                      ) : (
+                                        <Ionicons name="trash-outline" size={14} color="#f87171" />
+                                      )}
+                                    </Pressable>
                                   </View>
                                   <Text style={styles.builderMediaPostTimestamp}>{post.relativeTime}</Text>
                                 </View>
@@ -1542,7 +1633,7 @@ export default function ProfileScreen() {
                       />
 
                       <View style={styles.chipRow}>
-                        {(['form', 'booking', 'external_url'] as CreatorProfileCtaActionType[]).map((value) => {
+                        {(['direct_message', 'form', 'booking', 'external_url'] as CreatorProfileCtaActionType[]).map((value) => {
                           const isSelected = block.actionType === value;
 
                           return (
@@ -1556,7 +1647,13 @@ export default function ProfileScreen() {
                               }
                             >
                               <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
-                                {value === 'form' ? 'Form' : value === 'booking' ? 'Book a call' : 'External link'}
+                                {value === 'direct_message'
+                                  ? 'DM'
+                                  : value === 'form'
+                                    ? 'Form'
+                                    : value === 'booking'
+                                      ? 'Book a call'
+                                      : 'External link'}
                               </Text>
                             </Pressable>
                           );
@@ -1592,9 +1689,11 @@ export default function ProfileScreen() {
                         />
                       ) : (
                         <Text style={styles.builderHelpText}>
-                          {block.actionType === 'form'
-                            ? 'This button will open your inquiry form inside Syncrolly.'
-                            : 'This button will start a direct booking flow inside Syncrolly.'}
+                          {block.actionType === 'direct_message'
+                            ? 'This button will open a native Syncrolly DM.'
+                            : block.actionType === 'form'
+                              ? 'This button will open your inquiry form inside Syncrolly.'
+                              : 'This button will start a direct booking flow inside Syncrolly.'}
                         </Text>
                       )}
 
@@ -1709,6 +1808,7 @@ export default function ProfileScreen() {
           </View>
         ) : null}
       </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -1718,9 +1818,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background
   },
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: theme.colors.background
+  },
+  container: {
+    flex: 1
   },
   content: {
     paddingHorizontal: 18,
@@ -1766,43 +1869,11 @@ const styles = StyleSheet.create({
   },
   coverOrb: {
     position: 'absolute',
-    width: 312,
-    height: 312,
-    left: 18,
-    top: -126,
-    borderRadius: 999,
-    transform: [{ rotate: '-12deg' }, { scaleX: 1.08 }, { scaleY: 0.94 }]
-  },
-  coverOrbBand: {
-    position: 'absolute',
-    width: 332,
-    height: 70,
+    width: 336,
+    height: 336,
     left: 8,
-    top: 68,
+    top: -138,
     borderRadius: 999,
-    backgroundColor: 'rgba(11, 11, 12, 0.76)',
-    transform: [{ rotate: '-12deg' }]
-  },
-  coverOrbShadow: {
-    position: 'absolute',
-    width: 344,
-    height: 132,
-    left: -2,
-    top: 78,
-    borderRadius: 999,
-    backgroundColor: 'rgba(220, 120, 132, 0.20)',
-    transform: [{ rotate: '-12deg' }]
-  },
-  coverOrbRim: {
-    position: 'absolute',
-    width: 318,
-    height: 318,
-    left: 14,
-    top: -129,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: 'rgba(245, 202, 208, 0.36)',
-    opacity: 0.72,
     transform: [{ rotate: '-12deg' }, { scaleX: 1.08 }, { scaleY: 0.94 }]
   },
   coverFade: {
@@ -1820,25 +1891,29 @@ const styles = StyleSheet.create({
   profileBody: {
     position: 'relative',
     paddingHorizontal: 18,
-    paddingTop: 12,
+    paddingTop: 10,
     backgroundColor: theme.colors.surfaceContainerHigh,
-    paddingBottom: 22
+    paddingBottom: 20
+  },
+  profileHeaderRow: {
+    marginTop: -52,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12
   },
   avatarRow: {
-    position: 'absolute',
-    top: -76,
-    right: 10,
-    width: 116,
-    height: 108,
-    alignItems: 'flex-end',
-    zIndex: 2
+    width: 84,
+    height: 84,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   profileIdentity: {
-    paddingRight: 8
+    flex: 1,
+    paddingBottom: 6
   },
   avatarFrame: {
-    width: 96,
-    height: 96,
+    width: 84,
+    height: 84,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#0f1625',
@@ -1864,13 +1939,13 @@ const styles = StyleSheet.create({
   },
   avatarFallback: {
     color: '#ffffff',
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800'
   },
   avatarLoading: {
     position: 'absolute',
-    right: 2,
-    bottom: 14
+    right: 0,
+    bottom: 0
   },
   profileTag: {
     color: theme.colors.textMuted,
@@ -1880,7 +1955,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8
   },
   nameRow: {
-    marginTop: 6,
+    marginTop: 2,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8
@@ -1889,7 +1964,8 @@ const styles = StyleSheet.create({
     flex: 1,
     flexShrink: 1,
     color: theme.colors.textPrimary,
-    fontSize: 22,
+    fontSize: 28,
+    lineHeight: 32,
     fontWeight: '800',
     fontFamily: theme.typography.headline
   },
@@ -1906,7 +1982,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   bioRow: {
-    marginTop: 10
+    marginTop: 6
   },
   inlineEditTarget: {
     flex: 1
@@ -1915,7 +1991,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: theme.colors.onSurfaceVariant,
     fontSize: 15,
-    lineHeight: 24
+    lineHeight: 22
   },
   bioInput: {
     flex: 1,
@@ -1932,12 +2008,9 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top'
   },
   statsRow: {
-    marginTop: 20,
-    paddingTop: 16,
+    marginTop: 14,
     flexDirection: 'row',
-    gap: 28,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(114, 119, 132, 0.14)'
+    gap: 28
   },
   profileStat: {
     gap: 2
@@ -2195,7 +2268,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   chipTextActive: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   accountValue: {
     color: theme.colors.textPrimary,
@@ -2206,6 +2279,38 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: 13,
     lineHeight: 20
+  },
+  setupStudioCard: {
+    borderRadius: 18,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  setupStudioIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: theme.colors.primaryStrong,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  setupStudioCopy: {
+    flex: 1,
+    gap: 3
+  },
+  setupStudioTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '800'
+  },
+  setupStudioBody: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18
   },
   builderAddRow: {
     flexDirection: 'row',
@@ -2220,15 +2325,16 @@ const styles = StyleSheet.create({
   builderAddButton: {
     minHeight: 36,
     borderRadius: 14,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    alignSelf: 'flex-start'
   },
   builderAddButtonInner: {
     minHeight: 36,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8
+    gap: 6
   },
   builderAddButtonText: {
     color: '#ffffff',
@@ -2245,7 +2351,9 @@ const styles = StyleSheet.create({
     height: 14
   },
   builderBlockCard: {
-    gap: 10
+    gap: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4
   },
   builderBlockCardDragging: {
     opacity: 0.96,
@@ -2255,7 +2363,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 12
+    gap: 12,
+    paddingHorizontal: 6,
+    paddingTop: 4,
+    paddingBottom: 4
   },
   builderBlockToolbarLeading: {
     flex: 1,
@@ -2377,7 +2488,8 @@ const styles = StyleSheet.create({
   },
   builderLiveVideoPreview: {
     marginTop: 4,
-    height: 118,
+    width: '100%',
+    aspectRatio: 16 / 9,
     borderRadius: 4,
     overflow: 'hidden',
     alignItems: 'center',
@@ -2484,7 +2596,7 @@ const styles = StyleSheet.create({
     paddingTop: 2
   },
   builderLiveOfferIconLabel: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 10,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -2570,6 +2682,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between'
   },
+  builderMediaPostMetaActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
   builderMediaPostLikePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2578,6 +2695,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: theme.colors.surfaceContainerHighest
+  },
+  builderMediaPostDeleteButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 999,
+    backgroundColor: 'rgba(248, 113, 113, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   builderMediaPostLikeText: {
     color: theme.colors.textSecondary,
@@ -2762,6 +2887,11 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center'
+  },
+  gradientButtonFillAuto: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start'
   },
   gradientButtonDisabled: {
     opacity: 0.7

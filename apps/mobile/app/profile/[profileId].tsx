@@ -11,12 +11,20 @@ import {
   type ProfilePost,
   type ViewerProfile
 } from '@syncrolly/core';
-import { createDirectConversation, getPublicProfile, getViewerProfile, listProfilePosts, toggleProfilePostLike } from '@syncrolly/data';
+import {
+  createDirectConversation,
+  deleteProfilePost,
+  getPublicProfile,
+  getViewerProfile,
+  listProfilePosts,
+  toggleProfilePostLike
+} from '@syncrolly/data';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Linking,
   Pressable,
@@ -52,6 +60,10 @@ function getInitials(name: string): string {
 }
 
 function getCreatorPrimaryAction(dmIntakePolicy: DmIntakePolicy, dmFeeUsd?: number) {
+  if (dmIntakePolicy === 'direct_message') {
+    return 'Message me';
+  }
+
   if (dmIntakePolicy === 'form') {
     return 'Fill form';
   }
@@ -101,6 +113,23 @@ function splitEditorialHeadline(value: string) {
   };
 }
 
+function shouldShowEditorialHeadline(value: string) {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return true;
+  }
+
+  const compact = normalized.toLowerCase().replace(/[.!?,]/g, '');
+  const greetingSet = new Set(['hi', 'hello', 'hey', 'yo', 'sup']);
+
+  if (greetingSet.has(compact)) {
+    return false;
+  }
+
+  return normalized.split(/\s+/).length > 1 || normalized.length > 6;
+}
+
 function CreatorHero({
   profile
 }: {
@@ -111,37 +140,43 @@ function CreatorHero({
   const headline = profile.creatorProfile?.headline?.trim() || 'Curating the Digital Aesthetic.';
   const bio = profile.bio.trim() || 'A curated creator page built to introduce your work with clarity and taste.';
   const editorialHeadline = splitEditorialHeadline(headline);
+  const showEditorialHeadline = shouldShowEditorialHeadline(headline);
 
   return (
-    <View style={styles.heroShell}>
+    <View style={[styles.heroShell, !showEditorialHeadline && styles.heroShellCompact]}>
       <View style={styles.heroMediaFrame}>
         {profile.coverImageUrl ? <Image source={{ uri: profile.coverImageUrl }} style={styles.heroCoverImage} /> : <CoverFallback />}
-        <View style={styles.heroMeshVertical} />
-        <View style={styles.heroMeshHorizontal} />
         <LinearGradient
           colors={['rgba(6,14,32,0.04)', 'rgba(11,19,38,0.72)', '#0b1326']}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
-          style={styles.heroFade}
+          style={[styles.heroFade, !showEditorialHeadline && styles.heroFadeCompact]}
         />
         <View style={styles.heroSoftVeil} />
       </View>
 
-      <View style={styles.heroPortraitCard}>
-        {showAvatar ? (
-          <Image source={{ uri: profile.avatarUrl }} style={styles.heroPortraitImage} />
-        ) : (
-          <View style={[styles.heroPortraitImage, { backgroundColor: `${profile.accentColor}18` }]}>
-            <Text style={[styles.heroAvatarFallback, { color: profile.accentColor }]}>{getInitials(profile.displayName)}</Text>
+      <View style={[styles.heroBody, !showEditorialHeadline && styles.heroBodyCompact]}>
+        <View style={[styles.heroIdentityRow, !showEditorialHeadline && styles.heroIdentityRowCompact]}>
+          <View style={styles.heroIdentityCopy}>
+            <Text style={styles.heroName}>{profile.displayName}</Text>
+            <Text style={styles.heroEyebrow}>{niche}</Text>
           </View>
-        )}
-      </View>
 
-      <View style={styles.heroBody}>
-        <Text style={styles.heroEyebrow}>{profile.displayName}</Text>
-        <Text style={styles.heroEditorialLine}>{editorialHeadline.leading}</Text>
-        {editorialHeadline.trailing ? <Text style={styles.heroEditorialAccent}>{editorialHeadline.trailing}</Text> : null}
-        <Text style={styles.heroMiniLabel}>{niche}</Text>
+          <View style={styles.heroPortraitCard}>
+            {showAvatar ? (
+              <Image source={{ uri: profile.avatarUrl }} style={styles.heroPortraitImage} />
+            ) : (
+              <View style={[styles.heroPortraitImage, { backgroundColor: `${profile.accentColor}18` }]}>
+                <Text style={[styles.heroAvatarFallback, { color: profile.accentColor }]}>{getInitials(profile.displayName)}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {showEditorialHeadline ? <Text style={styles.heroEditorialLine}>{editorialHeadline.leading}</Text> : null}
+        {showEditorialHeadline && editorialHeadline.trailing ? (
+          <Text style={styles.heroEditorialAccent}>{editorialHeadline.trailing}</Text>
+        ) : null}
         <Text style={styles.heroBio}>{bio}</Text>
       </View>
     </View>
@@ -199,7 +234,7 @@ function OffersBlockCard({
         {block.items.map((item) => (
           <View key={item.id} style={styles.offerRow}>
             <View style={styles.offerIconWrap}>
-              <Ionicons name={item.icon} size={14} color={theme.colors.primaryStrong} />
+              <Ionicons name={item.icon} size={14} color={theme.colors.textPrimary} />
             </View>
 
             <View style={styles.offerCopy}>
@@ -218,10 +253,16 @@ function OffersBlockCard({
 function MediaPostsBlockCard({
   block,
   posts,
+  canManagePosts,
+  deletingPostId,
+  onDeletePost,
   onToggleLike
 }: {
   block: CreatorProfileMediaPostsBlock;
   posts: ProfilePost[];
+  canManagePosts?: boolean;
+  deletingPostId?: string | null;
+  onDeletePost?: (postId: string) => void;
   onToggleLike: (postId: string) => void;
 }) {
   return (
@@ -240,14 +281,31 @@ function MediaPostsBlockCard({
                 {post.body ? <Text style={styles.mediaPostCaption}>{post.body}</Text> : null}
 
                 <View style={styles.mediaPostFooter}>
-                  <Pressable style={styles.mediaPostLikeButton} onPress={() => onToggleLike(post.id)}>
-                    <Ionicons
-                      name={post.likedByViewer ? 'heart' : 'heart-outline'}
-                      size={15}
-                      color={post.likedByViewer ? '#e2547b' : theme.colors.textMuted}
-                    />
-                    <Text style={styles.mediaPostLikeCount}>{post.likeCount}</Text>
-                  </Pressable>
+                  <View style={styles.mediaPostFooterActions}>
+                    <Pressable style={styles.mediaPostLikeButton} onPress={() => onToggleLike(post.id)}>
+                      <Ionicons
+                        name={post.likedByViewer ? 'heart' : 'heart-outline'}
+                        size={15}
+                        color={post.likedByViewer ? '#e2547b' : theme.colors.textMuted}
+                      />
+                      <Text style={styles.mediaPostLikeCount}>{post.likeCount}</Text>
+                    </Pressable>
+
+                    {canManagePosts ? (
+                      <Pressable
+                        disabled={deletingPostId === post.id}
+                        hitSlop={8}
+                        onPress={() => onDeletePost?.(post.id)}
+                        style={styles.mediaPostDeleteButton}
+                      >
+                        {deletingPostId === post.id ? (
+                          <ActivityIndicator size="small" color="#f87171" />
+                        ) : (
+                          <Ionicons name="trash-outline" size={14} color="#f87171" />
+                        )}
+                      </Pressable>
+                    ) : null}
+                  </View>
 
                   <Text style={styles.mediaPostTimestamp}>{post.relativeTime}</Text>
                 </View>
@@ -372,6 +430,7 @@ export default function PublicProfileScreen() {
   const [loadingScreen, setLoadingScreen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [startingConversation, setStartingConversation] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase || !effectiveProfileId) {
@@ -476,6 +535,44 @@ export default function PublicProfileScreen() {
     } catch (error) {
       setProfilePosts(previousPosts);
       setFeedback(getErrorMessage(error));
+    }
+  }
+
+  function handleConfirmDeletePost(postId: string) {
+    Alert.alert('Remove post?', 'This will remove the media post from your profile.', [
+      {
+        text: 'Cancel',
+        style: 'cancel'
+      },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => void handleDeletePost(postId)
+      }
+    ]);
+  }
+
+  async function handleDeletePost(postId: string) {
+    if (!supabase || !user || !isOwnProfile) {
+      return;
+    }
+
+    const previousPosts = profilePosts;
+
+    setDeletingPostId(postId);
+    setFeedback(null);
+    setProfilePosts((current) => current.filter((post) => post.id !== postId));
+
+    try {
+      await deleteProfilePost(supabase, {
+        postId,
+        userId: user.id
+      });
+    } catch (error) {
+      setProfilePosts(previousPosts);
+      setFeedback(getErrorMessage(error));
+    } finally {
+      setDeletingPostId(null);
     }
   }
 
@@ -590,6 +687,18 @@ export default function PublicProfileScreen() {
       return;
     }
 
+    if (block.actionType === 'direct_message') {
+      if (profile.creatorProfile?.dmIntakePolicy === 'paid_fee') {
+        setFeedback(
+          `Messaging ${profile.displayName} requires a paid unlock of $${profile.creatorProfile.dmFeeUsd}. Checkout is the next flow to wire in.`
+        );
+        return;
+      }
+
+      void handleStartConversation();
+      return;
+    }
+
     handleOpenInquiryForm();
   }
 
@@ -693,6 +802,9 @@ export default function PublicProfileScreen() {
                       key={block.id}
                       block={block}
                       posts={profilePosts}
+                      canManagePosts={isOwnProfile}
+                      deletingPostId={deletingPostId}
+                      onDeletePost={handleConfirmDeletePost}
                       onToggleLike={(postId) => void handleTogglePostLike(postId)}
                     />
                   );
@@ -710,16 +822,22 @@ export default function PublicProfileScreen() {
                     description:
                       creatorDmPolicy === 'form'
                         ? 'Share where you are and I will review the best next move.'
-                        : 'Book a focused conversation directly inside Syncrolly.',
+                        : creatorDmPolicy === 'paid_fee'
+                          ? 'Paid message unlock is planned, but checkout still needs to be wired in.'
+                          : 'Send a direct message and I will point you toward the right next step.',
                     buttonLabel: getCreatorPrimaryAction(creatorDmPolicy, profile.creatorProfile?.dmFeeUsd),
-                    actionType: creatorDmPolicy === 'form' ? 'form' : 'booking',
+                    actionType: creatorDmPolicy === 'form' ? 'form' : 'direct_message',
                     target: ''
                   }}
                   onPress={() => {
                     if (creatorDmPolicy === 'form') {
                       handleOpenInquiryForm();
+                    } else if (creatorDmPolicy === 'paid_fee') {
+                      setFeedback(
+                        `Messaging ${profile.displayName} requires a paid unlock of $${profile.creatorProfile?.dmFeeUsd ?? 25}. Checkout is the next flow to wire in.`
+                      );
                     } else {
-                      void handleStartBooking();
+                      void handleStartConversation();
                     }
                   }}
                 />
@@ -778,9 +896,12 @@ const styles = StyleSheet.create({
     gap: 26
   },
   heroShell: {
-    height: 548,
+    height: 462,
     position: 'relative',
     overflow: 'hidden'
+  },
+  heroShellCompact: {
+    height: 176
   },
   heroMediaFrame: {
     height: '100%',
@@ -792,41 +913,39 @@ const styles = StyleSheet.create({
     height: '100%',
     opacity: 0.36
   },
-  heroMeshVertical: {
-    position: 'absolute',
-    top: 54,
-    bottom: 0,
-    left: '50%',
-    width: 1,
-    backgroundColor: 'rgba(140, 144, 159, 0.16)'
-  },
-  heroMeshHorizontal: {
-    position: 'absolute',
-    top: 162,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(140, 144, 159, 0.14)'
-  },
   heroFade: {
     position: 'absolute',
     right: 0,
     bottom: 0,
     left: 0,
-    height: 240
+    height: 200
+  },
+  heroFadeCompact: {
+    height: 82
   },
   heroSoftVeil: {
     position: 'absolute',
     inset: 0,
     backgroundColor: 'rgba(6,14,32,0.16)'
   },
+  heroIdentityRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    marginBottom: 4
+  },
+  heroIdentityRowCompact: {
+    marginBottom: 2
+  },
+  heroIdentityCopy: {
+    flex: 1,
+    gap: 1,
+    paddingBottom: 4
+  },
   heroPortraitCard: {
-    position: 'absolute',
-    top: 28,
-    right: 22,
-    width: 106,
-    height: 106,
-    padding: 6,
+    width: 84,
+    height: 84,
+    padding: 4,
     borderRadius: 18,
     backgroundColor: theme.colors.surfaceContainerHigh,
     borderWidth: 1,
@@ -843,7 +962,7 @@ const styles = StyleSheet.create({
   heroPortraitImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 14,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -851,46 +970,53 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 28,
-    bottom: 52,
+    bottom: 28,
     gap: 6
   },
+  heroBodyCompact: {
+    top: 16,
+    bottom: undefined,
+    gap: 3
+  },
   heroAvatarFallback: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800'
   },
   heroEyebrow: {
-    color: theme.colors.primaryStrong,
-    fontSize: 12,
+    color: theme.colors.textSecondary,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase'
+  },
+  heroName: {
+    color: theme.colors.textPrimary,
+    fontSize: 31,
+    lineHeight: 35,
     fontWeight: '800',
-    letterSpacing: 0.7
+    fontFamily: theme.typography.headline
   },
   heroEditorialLine: {
     color: theme.colors.textPrimary,
-    fontSize: 31,
-    lineHeight: 37,
+    fontSize: 25,
+    lineHeight: 31,
     fontWeight: '700',
     fontFamily: 'Georgia'
   },
   heroEditorialAccent: {
     color: theme.colors.primaryStrong,
-    fontSize: 31,
-    lineHeight: 37,
+    fontSize: 25,
+    lineHeight: 31,
     fontWeight: '700',
     fontFamily: 'Georgia',
     fontStyle: 'italic'
   },
-  heroMiniLabel: {
-    marginTop: 6,
-    color: theme.colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600'
-  },
   heroBio: {
-    marginTop: 4,
-    maxWidth: 250,
+    marginTop: 2,
+    maxWidth: 280,
     color: theme.colors.onSurfaceVariant,
     fontSize: 14,
-    lineHeight: 22
+    lineHeight: 21
   },
   videoSectionCard: {
     marginHorizontal: 18,
@@ -936,7 +1062,8 @@ const styles = StyleSheet.create({
   },
   videoPreviewCard: {
     marginTop: 10,
-    height: 118,
+    width: '100%',
+    aspectRatio: 16 / 9,
     borderRadius: 2,
     overflow: 'hidden',
     alignItems: 'center',
@@ -1105,6 +1232,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between'
   },
+  mediaPostFooterActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
   mediaPostLikeButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1113,6 +1245,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: theme.colors.surfaceContainerHighest
+  },
+  mediaPostDeleteButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 999,
+    backgroundColor: 'rgba(248, 113, 113, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   mediaPostLikeCount: {
     color: theme.colors.textSecondary,

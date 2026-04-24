@@ -159,6 +159,12 @@ export default function RootLayout() {
         }}
       />
       <Stack.Screen
+        name="creator-onboarding"
+        options={{
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen
         name="program/[programId]"
         options={{
           animation: 'slide_from_right'

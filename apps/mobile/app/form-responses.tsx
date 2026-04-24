@@ -872,7 +872,7 @@ const styles = StyleSheet.create({
     fontWeight: '800'
   },
   filterChipTextActive: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   feedbackText: {
     color: theme.colors.textSecondary,
@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   responseBadgeText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.7,
@@ -1062,7 +1062,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   statusChipTextActive: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   deleteChip: {
     minHeight: 34,

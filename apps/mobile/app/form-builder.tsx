@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   typeChipTextActive: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   optionStack: {
     gap: 10

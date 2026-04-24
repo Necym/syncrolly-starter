@@ -830,8 +830,25 @@ export default function ProgramDetailScreen() {
     role === 'creator'
       ? 'Program preview'
       : spotlightLessonIndex
-        ? `Program • Lesson ${spotlightLessonIndex}`
+        ? `Program - Lesson ${spotlightLessonIndex}`
         : 'Program';
+  const curriculumModules = program.modules.length
+    ? program.modules
+    : [
+        {
+          id: 'fallback-module',
+          programId: program.id,
+          title: 'Lessons',
+          summary: '',
+          position: 1,
+          lessonCount: program.lessons.length,
+          completedLessons: program.completedLessons,
+          progressPercent: program.progressPercent,
+          lessons: program.lessons,
+          createdAt: program.createdAt,
+          updatedAt: program.updatedAt
+        }
+      ];
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -901,7 +918,7 @@ export default function ProgramDetailScreen() {
 
             {spotlightLesson?.videoUrl ? (
               <View style={styles.heroPlayButton}>
-                <Ionicons name={spotlightAssetKind === 'document' ? 'document-text' : 'play'} size={32} color={theme.colors.primaryStrong} />
+                <Ionicons name={spotlightAssetKind === 'document' ? 'document-text' : 'play'} size={30} color="#ffffff" />
               </View>
             ) : null}
           </Pressable>
@@ -937,7 +954,7 @@ export default function ProgramDetailScreen() {
                   onPress={() => void handleMarkComplete(spotlightLesson.id)}
                   disabled={completingLessonId === spotlightLesson.id}
                 >
-                  <Ionicons name="checkmark-circle" size={16} color={theme.colors.primaryStrong} />
+                  <Ionicons name="checkmark-circle" size={16} color={theme.colors.textPrimary} />
                   <Text style={styles.lessonSecondaryActionText}>
                     {completingLessonId === spotlightLesson.id ? 'Saving...' : 'Mark complete'}
                   </Text>
@@ -956,7 +973,7 @@ export default function ProgramDetailScreen() {
                     })
                   }
                 >
-                  <Ionicons name="create-outline" size={16} color={theme.colors.primaryStrong} />
+                  <Ionicons name="create-outline" size={16} color={theme.colors.textPrimary} />
                   <Text style={styles.lessonSecondaryActionText}>Open Studio</Text>
                 </Pressable>
               ) : null}
@@ -976,97 +993,116 @@ export default function ProgramDetailScreen() {
                 <View style={[styles.progressFill, { width: `${program.progressPercent}%` }]} />
               </View>
 
-              <Ionicons name="trophy" size={18} color={theme.colors.primaryStrong} />
+              <Ionicons name="trophy" size={18} color={theme.colors.textPrimary} />
             </View>
           </View>
 
           <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionEyebrow}>{role === 'creator' ? 'Program preview' : 'Program'}</Text>
-              <Text style={styles.sectionTitle}>Lessons</Text>
+              <Text style={styles.sectionTitle}>Modules</Text>
             </View>
           </View>
 
           {program.lessons.length ? (
             <View style={styles.editorialCurriculumList}>
-              {program.lessons.map((lesson, index) => {
-                const lessonAssetKind = getLessonAssetKind(lesson.videoUrl);
-                const state =
-                  role === 'creator'
-                    ? lesson.videoUrl
-                      ? 'live'
-                      : 'draft'
-                    : lesson.isCompleted
-                      ? 'complete'
-                      : currentLessonId === lesson.id
-                        ? 'current'
-                        : 'locked';
-                const canOpenAsset =
-                  Boolean(lesson.videoUrl) &&
-                  (role === 'creator' || state === 'current' || state === 'complete' || state === 'live');
-
-                return (
-                  <Pressable
-                    key={lesson.id}
-                    style={[
-                      styles.editorialCurriculumCard,
-                      state === 'current' && styles.editorialCurriculumCardCurrent,
-                      (state === 'locked' || state === 'draft') && styles.editorialCurriculumCardMuted
-                    ]}
-                    onPress={() => {
-                      if (lesson.videoUrl && canOpenAsset) {
-                        handleOpenLessonAsset(lesson.id, lesson.title, lesson.videoUrl);
-                      }
-                    }}
-                    disabled={!lesson.videoUrl || !canOpenAsset}
-                  >
-                    {state === 'current' ? <View style={styles.editorialCurrentRail} /> : null}
-
-                    <View
-                      style={[
-                        styles.editorialCurriculumIcon,
-                        state === 'current' && styles.editorialCurriculumIconCurrent,
-                        state === 'complete' && styles.editorialCurriculumIconComplete
-                      ]}
-                    >
-                      <Ionicons
-                        name={
-                          state === 'complete'
-                            ? 'checkmark'
-                            : state === 'current'
-                              ? lessonAssetKind === 'document'
-                                ? 'document-text'
-                                : 'play'
-                              : state === 'locked' || state === 'draft'
-                                ? 'lock-closed'
-                                : lessonAssetKind === 'document'
-                                  ? 'document-text'
-                                  : 'play'
-                        }
-                        size={16}
-                        color={
-                          state === 'current'
-                            ? '#ffffff'
-                            : state === 'complete'
-                              ? theme.colors.primaryStrong
-                              : '#8a93a5'
-                        }
-                      />
+              {curriculumModules.map((module) => (
+                <View key={module.id} style={styles.curriculumModuleCard}>
+                  <View style={styles.curriculumModuleHeader}>
+                    <View>
+                      <Text style={styles.curriculumModuleEyebrow}>
+                        Module {module.position} - {module.lessonCount === 1 ? '1 lesson' : `${module.lessonCount} lessons`}
+                      </Text>
+                      <Text style={styles.curriculumModuleTitle}>{module.title}</Text>
                     </View>
 
-                    <View style={styles.editorialCurriculumCopy}>
-                      <Text style={[styles.editorialCurriculumEyebrow, state === 'current' && styles.editorialCurriculumEyebrowCurrent]}>
-                        Lesson {index + 1}
-                        {state === 'current' ? ' • Now Playing' : state === 'complete' ? ' • Complete' : ''}
-                      </Text>
-                      <Text style={styles.editorialCurriculumTitle}>{lesson.title}</Text>
-                      <Text style={[styles.editorialCurriculumMeta, state === 'current' && styles.editorialCurriculumMetaCurrent]}>
-                        {getLessonAssetLabel(lesson.videoUrl, lesson.durationLabel)}
-                      </Text>
+                    <View style={styles.curriculumModuleProgressPill}>
+                      <Text style={styles.curriculumModuleProgressText}>{module.progressPercent}%</Text>
                     </View>
-                  </Pressable>
-                );
-              })}
+                  </View>
+
+                  <View style={styles.curriculumModuleLessons}>
+                    {module.lessons.map((lesson, index) => {
+                      const lessonAssetKind = getLessonAssetKind(lesson.videoUrl);
+                      const state =
+                        role === 'creator'
+                          ? lesson.videoUrl
+                            ? 'live'
+                            : 'draft'
+                          : lesson.isCompleted
+                            ? 'complete'
+                            : currentLessonId === lesson.id
+                              ? 'current'
+                              : 'locked';
+                      const canOpenAsset =
+                        Boolean(lesson.videoUrl) &&
+                        (role === 'creator' || state === 'current' || state === 'complete' || state === 'live');
+
+                      return (
+                        <Pressable
+                          key={lesson.id}
+                          style={[
+                            styles.editorialCurriculumCard,
+                            state === 'current' && styles.editorialCurriculumCardCurrent,
+                            (state === 'locked' || state === 'draft') && styles.editorialCurriculumCardMuted
+                          ]}
+                          onPress={() => {
+                            if (lesson.videoUrl && canOpenAsset) {
+                              handleOpenLessonAsset(lesson.id, lesson.title, lesson.videoUrl);
+                            }
+                          }}
+                          disabled={!lesson.videoUrl || !canOpenAsset}
+                        >
+                          {state === 'current' ? <View style={styles.editorialCurrentRail} /> : null}
+
+                          <View
+                            style={[
+                              styles.editorialCurriculumIcon,
+                              state === 'current' && styles.editorialCurriculumIconCurrent,
+                              state === 'complete' && styles.editorialCurriculumIconComplete
+                            ]}
+                          >
+                            <Ionicons
+                              name={
+                                state === 'complete'
+                                  ? 'checkmark'
+                                  : state === 'current'
+                                    ? lessonAssetKind === 'document'
+                                      ? 'document-text'
+                                      : 'play'
+                                    : state === 'locked' || state === 'draft'
+                                      ? 'lock-closed'
+                                      : lessonAssetKind === 'document'
+                                        ? 'document-text'
+                                        : 'play'
+                              }
+                              size={16}
+                              color={
+                                state === 'current'
+                                  ? '#ffffff'
+                                  : state === 'complete'
+                                    ? theme.colors.textPrimary
+                                    : '#8a93a5'
+                              }
+                            />
+                          </View>
+
+                          <View style={styles.editorialCurriculumCopy}>
+                            <Text style={[styles.editorialCurriculumEyebrow, state === 'current' && styles.editorialCurriculumEyebrowCurrent]}>
+                              Lesson {index + 1}
+                              {state === 'current' ? ' - Now Playing' : state === 'complete' ? ' - Complete' : ''}
+                            </Text>
+                            <Text style={styles.editorialCurriculumTitle}>{lesson.title}</Text>
+                            <Text style={[styles.editorialCurriculumMeta, state === 'current' && styles.editorialCurriculumMetaCurrent]}>
+                              {getLessonAssetLabel(lesson.videoUrl, lesson.durationLabel)}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
             </View>
           ) : (
             <View style={styles.emptyCard}>
@@ -1178,18 +1214,25 @@ export default function ProgramDetailScreen() {
                       <View style={styles.videoCompletionActions}>
                         {nextLessonRecord?.videoUrl ? (
                           <Pressable style={styles.videoCompletionPrimaryButton} onPress={handleContinueToNextLesson}>
-                            <Text style={styles.videoCompletionPrimaryButtonText}>Next lesson</Text>
-                            <Ionicons name="arrow-forward" size={14} color="#ffffff" />
+                            <LinearGradient
+                              colors={theme.gradients.brand}
+                              end={{ x: 1, y: 1 }}
+                              start={{ x: 0, y: 0 }}
+                              style={styles.videoCompletionPrimaryButtonFill}
+                            >
+                              <Text style={styles.videoCompletionPrimaryButtonText}>Next lesson</Text>
+                              <Ionicons name="arrow-forward" size={14} color="#ffffff" />
+                            </LinearGradient>
                           </Pressable>
                         ) : null}
 
                         <Pressable style={styles.videoCompletionSecondaryButton} onPress={handleReplayVideo}>
-                          <Ionicons name="refresh" size={14} color={theme.colors.primaryStrong} />
+                          <Ionicons name="refresh" size={14} color={theme.colors.textPrimary} />
                           <Text style={styles.videoCompletionSecondaryButtonText}>Replay</Text>
                         </Pressable>
 
                         <Pressable style={styles.videoCompletionSecondaryButton} onPress={handleCloseVideoPlayer}>
-                          <Ionicons name="close" size={14} color={theme.colors.primaryStrong} />
+                          <Ionicons name="close" size={14} color={theme.colors.textPrimary} />
                           <Text style={styles.videoCompletionSecondaryButtonText}>Exit</Text>
                         </Pressable>
                       </View>
@@ -1207,24 +1250,52 @@ export default function ProgramDetailScreen() {
                         </Text>
                       </View>
                       <Pressable style={styles.videoCloseButton} onPress={handleCloseVideoPlayer}>
-                        <Ionicons name="close" size={18} color="#f8fafc" />
+                        <LinearGradient
+                          colors={theme.gradients.brand}
+                          end={{ x: 1, y: 1 }}
+                          start={{ x: 0, y: 0 }}
+                          style={styles.videoCloseButtonFill}
+                        >
+                          <Ionicons name="close" size={18} color="#ffffff" />
+                        </LinearGradient>
                       </Pressable>
                     </View>
 
                     <View style={styles.videoOverlayCenter}>
                       <Pressable style={styles.videoCenterControl} onPress={handleTogglePlayback}>
-                        <Ionicons name={videoProgress.playing ? 'pause' : 'play'} size={26} color="#ffffff" />
+                        <LinearGradient
+                          colors={theme.gradients.brand}
+                          end={{ x: 1, y: 1 }}
+                          start={{ x: 0, y: 0 }}
+                          style={styles.videoCenterControlFill}
+                        >
+                          <Ionicons name={videoProgress.playing ? 'pause' : 'play'} size={26} color="#ffffff" />
+                        </LinearGradient>
                       </Pressable>
                     </View>
 
                     <View style={[styles.videoOverlayBottom, { paddingBottom: Math.max(insets.bottom + 10, 18) }]}>
                       <View style={styles.videoBottomRow}>
                         <Pressable style={styles.videoIconButton} onPress={handleTogglePlayback}>
-                          <Ionicons name={videoProgress.playing ? 'pause' : 'play'} size={15} color="#f8fafc" />
+                          <LinearGradient
+                            colors={theme.gradients.brand}
+                            end={{ x: 1, y: 1 }}
+                            start={{ x: 0, y: 0 }}
+                            style={styles.videoIconButtonFill}
+                          >
+                            <Ionicons name={videoProgress.playing ? 'pause' : 'play'} size={15} color="#ffffff" />
+                          </LinearGradient>
                         </Pressable>
 
                         <Pressable style={styles.videoIconButton} onPress={handleToggleMute}>
-                          <Ionicons name={videoProgress.muted ? 'volume-mute' : 'volume-high'} size={15} color="#f8fafc" />
+                          <LinearGradient
+                            colors={theme.gradients.brand}
+                            end={{ x: 1, y: 1 }}
+                            start={{ x: 0, y: 0 }}
+                            style={styles.videoIconButtonFill}
+                          >
+                            <Ionicons name={videoProgress.muted ? 'volume-mute' : 'volume-high'} size={15} color="#ffffff" />
+                          </LinearGradient>
                         </Pressable>
 
                         <Text style={styles.seekTimestamp}>
@@ -1247,7 +1318,10 @@ export default function ProgramDetailScreen() {
                         >
                           <View style={styles.seekTrack}>
                             <View style={styles.seekRail} />
-                            <View
+                            <LinearGradient
+                              colors={theme.gradients.brand}
+                              end={{ x: 1, y: 0 }}
+                              start={{ x: 0, y: 0 }}
                               style={[styles.seekFill, { width: `${getPlaybackPercent(effectiveCurrentTime, videoProgress.duration)}%` }]}
                             />
                             <View
@@ -1256,7 +1330,10 @@ export default function ProgramDetailScreen() {
                                 { left: `${getPlaybackPercent(effectiveCurrentTime, videoProgress.duration)}%` }
                               ]}
                             />
-                            <View
+                            <LinearGradient
+                              colors={theme.gradients.brand}
+                              end={{ x: 1, y: 1 }}
+                              start={{ x: 0, y: 0 }}
                               style={[styles.seekThumb, { left: `${getPlaybackPercent(effectiveCurrentTime, videoProgress.duration)}%` }]}
                             />
                           </View>
@@ -1288,7 +1365,7 @@ export default function ProgramDetailScreen() {
                       onPress={() => void handleMarkComplete(activeLessonRecord.id)}
                       disabled={completingLessonId === activeLessonRecord.id}
                     >
-                      <Ionicons name="checkmark-circle" size={15} color={theme.colors.primaryStrong} />
+                      <Ionicons name="checkmark-circle" size={15} color={theme.colors.textPrimary} />
                       <Text style={styles.documentActionButtonText}>
                         {completingLessonId === activeLessonRecord.id ? 'Saving...' : 'Mark complete'}
                       </Text>
@@ -1296,7 +1373,14 @@ export default function ProgramDetailScreen() {
                   ) : null}
 
                   <Pressable style={styles.videoCloseButton} onPress={handleCloseDocumentViewer}>
-                    <Ionicons name="close" size={18} color="#f8fafc" />
+                    <LinearGradient
+                      colors={theme.gradients.brand}
+                      end={{ x: 1, y: 1 }}
+                      start={{ x: 0, y: 0 }}
+                      style={styles.videoCloseButtonFill}
+                    >
+                      <Ionicons name="close" size={18} color="#ffffff" />
+                    </LinearGradient>
                   </Pressable>
                 </View>
               </View>
@@ -1521,14 +1605,17 @@ const styles = StyleSheet.create({
     fontWeight: '800'
   },
   editorialMediaCard: {
-    minHeight: 220,
-    borderRadius: 14,
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#dfe5ef',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#191c1e',
-    shadowOpacity: 0.06,
+    shadowColor: '#050910',
+    shadowOpacity: 0.18,
     shadowRadius: 20,
     shadowOffset: {
       width: 0,
@@ -1544,12 +1631,12 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject
   },
   heroPlayButton: {
-    width: 84,
-    height: 84,
-    borderRadius: 24,
-    backgroundColor: 'rgba(11,19,38,0.82)',
+    width: 62,
+    height: 62,
+    borderRadius: 18,
+    backgroundColor: theme.colors.primaryStrong,
     borderWidth: 1,
-    borderColor: theme.colors.outlineSoft,
+    borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#050910',
@@ -1565,7 +1652,7 @@ const styles = StyleSheet.create({
     gap: 10
   },
   editorialLessonEyebrow: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textMuted,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.9,
@@ -1633,7 +1720,7 @@ const styles = StyleSheet.create({
     elevation: 2
   },
   lessonSecondaryActionText: {
-    color: theme.colors.textSecondary,
+    color: theme.colors.textPrimary,
     fontSize: 13,
     fontWeight: '800'
   },
@@ -1672,7 +1759,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase'
   },
   progressPanelValueInline: {
-    color: '#20242b',
+    color: theme.colors.textPrimary,
     fontSize: 18,
     lineHeight: 22,
     fontWeight: '700',
@@ -1797,10 +1884,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#eff4ff'
+    backgroundColor: theme.colors.primarySoft
   },
   creatorActionText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 12,
     fontWeight: '800'
   },
@@ -1841,12 +1928,59 @@ const styles = StyleSheet.create({
     paddingVertical: 7
   },
   progressBadgeText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 12,
     fontWeight: '800'
   },
   editorialCurriculumList: {
     gap: 14
+  },
+  curriculumModuleCard: {
+    gap: 12,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    padding: 14
+  },
+  curriculumModuleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12
+  },
+  curriculumModuleEyebrow: {
+    color: theme.colors.textMuted,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.9,
+    textTransform: 'uppercase'
+  },
+  curriculumModuleTitle: {
+    marginTop: 3,
+    color: theme.colors.textPrimary,
+    fontSize: 19,
+    lineHeight: 24,
+    fontWeight: '800',
+    fontFamily: EDITORIAL_SERIF
+  },
+  curriculumModuleProgressPill: {
+    minWidth: 48,
+    alignItems: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    paddingHorizontal: 10,
+    paddingVertical: 7
+  },
+  curriculumModuleProgressText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '900'
+  },
+  curriculumModuleLessons: {
+    gap: 10
   },
   editorialCurriculumCard: {
     flexDirection: 'row',
@@ -1894,21 +2028,21 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primaryStrong
   },
   editorialCurriculumIconComplete: {
-    backgroundColor: '#e5efff'
+    backgroundColor: theme.colors.primarySoft
   },
   editorialCurriculumCopy: {
     flex: 1,
     gap: 3
   },
   editorialCurriculumEyebrow: {
-    color: '#6d7789',
+    color: theme.colors.textMuted,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.7,
     textTransform: 'uppercase'
   },
   editorialCurriculumEyebrowCurrent: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   editorialCurriculumTitle: {
     color: theme.colors.textPrimary,
@@ -1922,7 +2056,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   editorialCurriculumMetaCurrent: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   lessonList: {
     gap: 14
@@ -1952,7 +2086,7 @@ const styles = StyleSheet.create({
     width: 2,
     flex: 1,
     minHeight: 44,
-    backgroundColor: '#dbe1ea'
+    backgroundColor: theme.colors.outlineSoft
   },
   lessonCopy: {
     flex: 1,
@@ -2082,14 +2216,16 @@ const styles = StyleSheet.create({
     minHeight: 34,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6
   },
   documentActionButtonText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 12,
     fontWeight: '800'
   },
@@ -2125,7 +2261,22 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 999,
-    backgroundColor: 'rgba(148, 163, 184, 0.16)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(148, 163, 184, 0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.primaryStrong,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: {
+      width: 0,
+      height: 6
+    },
+    elevation: 3
+  },
+  videoCloseButtonFill: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -2203,9 +2354,20 @@ const styles = StyleSheet.create({
   },
   videoCompletionPrimaryButton: {
     minHeight: 36,
-    paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: theme.colors.primaryStrong,
+    overflow: 'hidden',
+    shadowColor: theme.colors.primaryStrong,
+    shadowOpacity: 0.24,
+    shadowRadius: 12,
+    shadowOffset: {
+      width: 0,
+      height: 7
+    },
+    elevation: 3
+  },
+  videoCompletionPrimaryButtonFill: {
+    minHeight: 36,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2220,14 +2382,16 @@ const styles = StyleSheet.create({
     minHeight: 36,
     paddingHorizontal: 13,
     borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6
   },
   videoCompletionSecondaryButtonText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 12,
     fontWeight: '800'
   },
@@ -2252,7 +2416,22 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 999,
-    backgroundColor: 'rgba(15, 23, 42, 0.42)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(15, 23, 42, 0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.primaryStrong,
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    shadowOffset: {
+      width: 0,
+      height: 10
+    },
+    elevation: 4
+  },
+  videoCenterControlFill: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -2274,7 +2453,22 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 999,
-    backgroundColor: theme.colors.primaryStrong,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(148, 163, 184, 0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.primaryStrong,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: {
+      width: 0,
+      height: 5
+    },
+    elevation: 2
+  },
+  videoIconButtonFill: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -2303,15 +2497,14 @@ const styles = StyleSheet.create({
     top: 5.5,
     bottom: 5.5,
     borderRadius: 999,
-    backgroundColor: 'rgba(37, 57, 94, 0.92)'
+    backgroundColor: 'rgba(54, 43, 103, 0.82)'
   },
   seekFill: {
     position: 'absolute',
     left: 0,
     top: 5.5,
     bottom: 5.5,
-    borderRadius: 999,
-    backgroundColor: theme.colors.surfaceContainerLowest
+    borderRadius: 999
   },
   seekThumb: {
     position: 'absolute',
@@ -2321,7 +2514,16 @@ const styles = StyleSheet.create({
     marginLeft: -5,
     marginTop: -5,
     borderRadius: 999,
-    backgroundColor: theme.colors.primaryStrong
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.82)',
+    shadowColor: theme.colors.primaryStrong,
+    shadowOpacity: 0.42,
+    shadowRadius: 8,
+    shadowOffset: {
+      width: 0,
+      height: 3
+    },
+    elevation: 3
   },
   seekThumbTouchTarget: {
     position: 'absolute',

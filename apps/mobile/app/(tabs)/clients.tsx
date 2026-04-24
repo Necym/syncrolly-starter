@@ -29,6 +29,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AmbientBackground from '../../components/AmbientBackground';
 import { useMobileSession } from '../../lib/session';
 
 type CalendarDay = {
@@ -797,7 +798,10 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
+      <View style={styles.screen}>
+        <AmbientBackground />
+
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.calendarCard}>
           <View style={styles.calendarHeader}>
@@ -939,7 +943,7 @@ export default function CalendarScreen() {
                             <Ionicons
                               name={getCallConfirmationIconName(call)}
                               size={14}
-                              color={call.status === 'pending' ? '#8c6510' : '#16643a'}
+                              color={call.status === 'pending' ? '#fbbf24' : '#86efac'}
                             />
                           </View>
 
@@ -1354,6 +1358,7 @@ export default function CalendarScreen() {
           </View>
         </View>
       </Modal>
+      </View>
     </SafeAreaView>
   );
 }
@@ -1653,9 +1658,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background
   },
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: theme.colors.background
+  },
+  container: {
+    flex: 1
   },
   content: {
     paddingHorizontal: 18,
@@ -1783,7 +1791,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted
   },
   dayLabelToday: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   dayLabelSelected: {
     color: '#ffffff'
@@ -1828,7 +1836,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   sectionCountText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 12,
     fontWeight: '800'
   },
@@ -1925,10 +1933,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   callStatusIconWrapPending: {
-    backgroundColor: theme.colors.warningSoft
+    backgroundColor: 'rgba(251, 191, 36, 0.16)'
   },
   callStatusIconWrapConfirmed: {
-    backgroundColor: theme.colors.successSoft
+    backgroundColor: 'rgba(134, 239, 172, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(134, 239, 172, 0.28)'
   },
   scheduleEventName: {
     color: theme.colors.textPrimary,
@@ -2111,7 +2121,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   durationChipTextActive: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   durationCustomChip: {
     minWidth: 58,
@@ -2127,13 +2137,13 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   durationCustomInputInlineActive: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   durationDoneChip: {
     backgroundColor: theme.colors.primarySoft
   },
   durationDoneText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 13,
     fontWeight: '800'
   },
@@ -2199,7 +2209,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   attendeeOptionNameSelected: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   attendeeOptionMeta: {
     marginTop: 3,

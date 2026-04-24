@@ -4,6 +4,7 @@ import type {
   CreatorProfilePageBlock,
   CreateProgramInput,
   CreateProgramLessonInput,
+  CreateProgramModuleInput,
   CreateScheduledCallInput,
   DeleteScheduledCallInput,
   DirectoryProfile,
@@ -21,6 +22,7 @@ import type {
   ProgramDetail,
   ProgramLearner,
   ProgramLesson,
+  ProgramModule,
   ProgramSummary,
   SaveProgramLessonProgressInput,
   SendInstagramButtonReplyInput,
@@ -32,6 +34,7 @@ import type {
   SaveSupporterProfileInput,
   SubmitInquiryFormInput,
   UpdateProgramInput,
+  UpdateProgramModuleInput,
   VoiceAssistantTurn,
   VoiceAssistantTurnInput,
   ViewerProfile
@@ -66,6 +69,7 @@ type InstagramAccountConnectionRow = PublicRow<'instagram_account_connections'>;
 type InstagramLeadRow = PublicRow<'instagram_leads'>;
 type InstagramLeadMessageRow = PublicRow<'instagram_lead_messages'>;
 type ProgramRow = PublicRow<'programs'>;
+type ProgramModuleRow = PublicRow<'program_modules'>;
 type ProgramLessonRow = PublicRow<'program_lessons'>;
 type ProgramEnrollmentRow = PublicRow<'program_enrollments'>;
 type LessonProgressRow = PublicRow<'lesson_progress'>;
@@ -242,6 +246,7 @@ function mapProgramLessons(lessons: ProgramLessonRow[], progressByLessonId: Map<
     })(),
     id: lesson.id,
     programId: lesson.program_id,
+    moduleId: lesson.module_id,
     title: lesson.title,
     summary: lesson.summary,
     videoUrl: lesson.video_url ?? undefined,
@@ -250,6 +255,51 @@ function mapProgramLessons(lessons: ProgramLessonRow[], progressByLessonId: Map<
     createdAt: lesson.created_at,
     updatedAt: lesson.updated_at
   }));
+}
+
+function mapProgramModules(input: {
+  modules: ProgramModuleRow[];
+  lessons: ProgramLesson[];
+  role: 'creator' | 'supporter';
+}): ProgramModule[] {
+  const lessonsByModuleId = new Map<string, ProgramLesson[]>();
+
+  for (const lesson of input.lessons) {
+    const current = lessonsByModuleId.get(lesson.moduleId) ?? [];
+    current.push(lesson);
+    lessonsByModuleId.set(lesson.moduleId, current);
+  }
+
+  return [...input.modules]
+    .sort((left, right) => left.position - right.position)
+    .map((module) => {
+      const moduleLessons = [...(lessonsByModuleId.get(module.id) ?? [])].sort((left, right) => left.position - right.position);
+      const lessonCount = moduleLessons.length;
+      const completedLessons =
+        input.role === 'supporter'
+          ? moduleLessons.filter((lesson) => lesson.isCompleted).length
+          : moduleLessons.filter((lesson) => Boolean(lesson.videoUrl)).length;
+      const progressPercent =
+        input.role === 'supporter'
+          ? lessonCount
+            ? Math.round(moduleLessons.reduce((total, lesson) => total + lesson.progressPercent, 0) / lessonCount)
+            : 0
+          : toProgressPercent(completedLessons, lessonCount);
+
+      return {
+        id: module.id,
+        programId: module.program_id,
+        title: module.title,
+        summary: module.summary,
+        position: module.position,
+        lessonCount,
+        completedLessons,
+        progressPercent,
+        lessons: moduleLessons,
+        createdAt: module.created_at,
+        updatedAt: module.updated_at
+      };
+    });
 }
 
 function mapProgramLearners(input: {
@@ -341,6 +391,7 @@ function mapCreatorSupporterProgramSnapshots(
 function mapProgramSummaryRows(input: {
   programs: ProgramRow[];
   creatorProfiles: ProfileRow[];
+  modules: ProgramModuleRow[];
   lessons: ProgramLessonRow[];
   enrollments: ProgramEnrollmentRow[];
   progressRows: LessonProgressRow[];
@@ -348,8 +399,15 @@ function mapProgramSummaryRows(input: {
 }): ProgramSummary[] {
   const creatorProfilesById = new Map(input.creatorProfiles.map((profile) => [profile.id, profile]));
   const progressByLessonId = new Map(input.progressRows.map((progress) => [progress.lesson_id, progress]));
+  const modulesByProgramId = new Map<string, ProgramModuleRow[]>();
   const lessonsByProgramId = new Map<string, ProgramLessonRow[]>();
   const enrollmentsByProgramId = new Map<string, number>();
+
+  for (const module of input.modules) {
+    const current = modulesByProgramId.get(module.program_id) ?? [];
+    current.push(module);
+    modulesByProgramId.set(module.program_id, current);
+  }
 
   for (const lesson of input.lessons) {
     const current = lessonsByProgramId.get(lesson.program_id) ?? [];
@@ -362,7 +420,16 @@ function mapProgramSummaryRows(input: {
   }
 
   return input.programs.map((program) => {
-    const programLessons = [...(lessonsByProgramId.get(program.id) ?? [])].sort((left, right) => left.position - right.position);
+    const programModules = [...(modulesByProgramId.get(program.id) ?? [])].sort((left, right) => left.position - right.position);
+    const modulePositionById = new Map(programModules.map((module) => [module.id, module.position]));
+    const programLessons = [...(lessonsByProgramId.get(program.id) ?? [])].sort((left, right) => {
+      const leftModulePosition = modulePositionById.get(left.module_id) ?? 0;
+      const rightModulePosition = modulePositionById.get(right.module_id) ?? 0;
+
+      return leftModulePosition === rightModulePosition
+        ? left.position - right.position
+        : leftModulePosition - rightModulePosition;
+    });
     const lessonCount = programLessons.length;
     const completedLessons = input.role === 'supporter'
       ? programLessons.filter((lesson) => Boolean(progressByLessonId.get(lesson.id)?.completed_at)).length
@@ -389,6 +456,7 @@ function mapProgramSummaryRows(input: {
       subtitle: program.subtitle,
       description: program.description,
       thumbnailUrl: program.thumbnail_url ?? undefined,
+      moduleCount: programModules.length,
       lessonCount,
       enrolledCount: enrollmentsByProgramId.get(program.id) ?? 0,
       completedLessons,
@@ -1790,6 +1858,22 @@ export async function listProfilePosts(
   });
 }
 
+export async function deleteProfilePost(
+  client: SyncrollySupabaseClient,
+  input: {
+    postId: string;
+    userId: string;
+  }
+) {
+  const { error } = await client
+    .from('profile_posts')
+    .delete()
+    .eq('id', input.postId)
+    .eq('user_id', input.userId);
+
+  if (error) throw error;
+}
+
 export async function toggleProfilePostLike(
   client: SyncrollySupabaseClient,
   input: {
@@ -2054,6 +2138,7 @@ async function loadProgramSupportRows(
   if (!programs.length) {
     return {
       creatorProfiles: [] as ProfileRow[],
+      modules: [] as ProgramModuleRow[],
       lessons: [] as ProgramLessonRow[],
       enrollments: [] as ProgramEnrollmentRow[],
       progressRows: [] as LessonProgressRow[]
@@ -2064,15 +2149,18 @@ async function loadProgramSupportRows(
 
   const [
     { data: creatorProfiles, error: creatorProfilesError },
+    { data: modules, error: modulesError },
     { data: lessons, error: lessonsError },
     { data: enrollments, error: enrollmentsError }
   ] = await Promise.all([
     client.from('profiles').select('*').in('id', unique(programs.map((program) => program.creator_id))),
+    client.from('program_modules').select('*').in('program_id', programIds).order('position', { ascending: true }),
     client.from('program_lessons').select('*').in('program_id', programIds).order('position', { ascending: true }),
     client.from('program_enrollments').select('*').in('program_id', programIds)
   ]);
 
   if (creatorProfilesError) throw creatorProfilesError;
+  if (modulesError) throw modulesError;
   if (lessonsError) throw lessonsError;
   if (enrollmentsError) throw enrollmentsError;
 
@@ -2086,6 +2174,7 @@ async function loadProgramSupportRows(
 
   return {
     creatorProfiles: creatorProfiles ?? [],
+    modules: modules ?? [],
     lessons: lessons ?? [],
     enrollments: enrollments ?? [],
     progressRows: progressRows ?? []
@@ -2103,6 +2192,7 @@ export async function listPrograms(
   return mapProgramSummaryRows({
     programs,
     creatorProfiles: supportRows.creatorProfiles,
+    modules: supportRows.modules,
     lessons: supportRows.lessons,
     enrollments: supportRows.enrollments,
     progressRows: supportRows.progressRows,
@@ -2125,6 +2215,7 @@ export async function getProgramDetails(
   const summary = mapProgramSummaryRows({
     programs: [program],
     creatorProfiles: supportRows.creatorProfiles,
+    modules: supportRows.modules,
     lessons: supportRows.lessons,
     enrollments: supportRows.enrollments,
     progressRows: supportRows.progressRows,
@@ -2132,9 +2223,16 @@ export async function getProgramDetails(
   })[0];
 
   const progressByLessonId = new Map(supportRows.progressRows.map((progress) => [progress.lesson_id, progress]));
+  const programModules = supportRows.modules
+    .filter((module) => module.program_id === program.id)
+    .sort((left, right) => left.position - right.position);
   const programLessons = supportRows.lessons
     .filter((lesson) => lesson.program_id === program.id)
-    .sort((left, right) => left.position - right.position);
+    .sort((left, right) => {
+      const leftModule = programModules.find((module) => module.id === left.module_id)?.position ?? 0;
+      const rightModule = programModules.find((module) => module.id === right.module_id)?.position ?? 0;
+      return leftModule === rightModule ? left.position - right.position : leftModule - rightModule;
+    });
   const programEnrollments = supportRows.enrollments.filter((enrollment) => enrollment.program_id === program.id);
   const learnerIds = unique(programEnrollments.map((enrollment) => enrollment.student_id));
   const { data: learnerProfiles, error: learnerProfilesError } =
@@ -2151,9 +2249,16 @@ export async function getProgramDetails(
 
   if (learnerProgressError) throw learnerProgressError;
 
+  const mappedLessons = mapProgramLessons(programLessons, progressByLessonId);
+
   return {
     ...summary,
-    lessons: mapProgramLessons(programLessons, progressByLessonId),
+    modules: mapProgramModules({
+      modules: programModules,
+      lessons: mappedLessons,
+      role
+    }),
+    lessons: mappedLessons,
     learners:
       role === 'creator'
         ? mapProgramLearners({
@@ -2190,6 +2295,8 @@ export async function createProgram(
 
   if (error) throw error;
 
+  await getOrCreateDefaultProgramModule(client, data.id);
+
   return requireData(
     await getProgramDetails(client, input.creatorId, 'creator', data.id),
     'Program could not be reloaded after saving.'
@@ -2225,6 +2332,161 @@ export async function updateProgram(
   );
 }
 
+async function getOrCreateDefaultProgramModule(
+  client: SyncrollySupabaseClient,
+  programId: string
+): Promise<ProgramModuleRow> {
+  const { data: existingModule, error: existingModuleError } = await client
+    .from('program_modules')
+    .select('*')
+    .eq('program_id', programId)
+    .order('position', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingModuleError) throw existingModuleError;
+  if (existingModule) return existingModule;
+
+  const { data: createdModule, error: createdModuleError } = await client
+    .from('program_modules')
+    .insert({
+      program_id: programId,
+      title: 'Module 1',
+      summary: '',
+      position: 1
+    })
+    .select('*')
+    .single();
+
+  if (createdModuleError) throw createdModuleError;
+  return createdModule;
+}
+
+export async function createProgramModule(
+  client: SyncrollySupabaseClient,
+  input: CreateProgramModuleInput
+): Promise<ProgramModule> {
+  const trimmedTitle = input.title.trim();
+
+  if (!trimmedTitle) {
+    throw new Error('Module title is required.');
+  }
+
+  const { data: latestModule, error: latestModuleError } = await client
+    .from('program_modules')
+    .select('position')
+    .eq('program_id', input.programId)
+    .order('position', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestModuleError) throw latestModuleError;
+
+  const { data, error } = await client
+    .from('program_modules')
+    .insert({
+      program_id: input.programId,
+      title: trimmedTitle,
+      summary: input.summary?.trim() ?? '',
+      position: (latestModule?.position ?? 0) + 1
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  return mapProgramModules({
+    modules: [data],
+    lessons: [],
+    role: 'creator'
+  })[0];
+}
+
+export async function updateProgramModule(
+  client: SyncrollySupabaseClient,
+  input: UpdateProgramModuleInput
+): Promise<ProgramModule> {
+  const trimmedTitle = input.title.trim();
+
+  if (!trimmedTitle) {
+    throw new Error('Module title is required.');
+  }
+
+  const { data, error } = await client
+    .from('program_modules')
+    .update({
+      title: trimmedTitle,
+      summary: input.summary?.trim() ?? ''
+    })
+    .eq('id', input.moduleId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  return mapProgramModules({
+    modules: [data],
+    lessons: [],
+    role: 'creator'
+  })[0];
+}
+
+export async function deleteProgramModule(
+  client: SyncrollySupabaseClient,
+  input: {
+    moduleId: string;
+    programId: string;
+  }
+) {
+  const { count, error: countError } = await client
+    .from('program_modules')
+    .select('id', { count: 'exact', head: true })
+    .eq('program_id', input.programId);
+
+  if (countError) throw countError;
+
+  if ((count ?? 0) <= 1) {
+    throw new Error('Keep at least one module in the program.');
+  }
+
+  const { error } = await client.from('program_modules').delete().eq('id', input.moduleId).eq('program_id', input.programId);
+
+  if (error) throw error;
+}
+
+export async function reorderProgramModule(
+  client: SyncrollySupabaseClient,
+  input: {
+    moduleId: string;
+    swapModuleId: string;
+    currentPosition: number;
+    targetPosition: number;
+  }
+) {
+  const temporaryPosition = Math.max(input.currentPosition, input.targetPosition) + 1000;
+
+  const { error: moveOutError } = await client
+    .from('program_modules')
+    .update({ position: temporaryPosition })
+    .eq('id', input.moduleId);
+
+  if (moveOutError) throw moveOutError;
+
+  const { error: swapError } = await client
+    .from('program_modules')
+    .update({ position: input.currentPosition })
+    .eq('id', input.swapModuleId);
+
+  if (swapError) throw swapError;
+
+  const { error: moveBackError } = await client
+    .from('program_modules')
+    .update({ position: input.targetPosition })
+    .eq('id', input.moduleId);
+
+  if (moveBackError) throw moveBackError;
+}
+
 export async function createProgramLesson(
   client: SyncrollySupabaseClient,
   input: CreateProgramLessonInput
@@ -2235,10 +2497,20 @@ export async function createProgramLesson(
     throw new Error('Lesson title is required.');
   }
 
+  const { data: requestedModule, error: requestedModuleError } = input.moduleId
+    ? await client.from('program_modules').select('*').eq('id', input.moduleId).eq('program_id', input.programId).maybeSingle()
+    : { data: null as ProgramModuleRow | null, error: null };
+
+  if (requestedModuleError) throw requestedModuleError;
+
+  const targetModule = input.moduleId
+    ? requireData(requestedModule, 'Module could not be found.')
+    : await getOrCreateDefaultProgramModule(client, input.programId);
+
   const { data: latestLesson, error: latestLessonError } = await client
     .from('program_lessons')
     .select('position')
-    .eq('program_id', input.programId)
+    .eq('module_id', targetModule.id)
     .order('position', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -2250,6 +2522,7 @@ export async function createProgramLesson(
     .from('program_lessons')
     .insert({
       program_id: input.programId,
+      module_id: targetModule.id,
       title: trimmedTitle,
       summary: input.summary?.trim() ?? '',
       video_url: input.videoUrl?.trim() || null,
@@ -2268,6 +2541,7 @@ export async function updateProgramLesson(
   client: SyncrollySupabaseClient,
   input: {
     lessonId: string;
+    moduleId?: string;
     title: string;
     summary?: string;
     videoUrl?: string;
@@ -2280,9 +2554,39 @@ export async function updateProgramLesson(
     throw new Error('Lesson title is required.');
   }
 
+  let nextModuleId = input.moduleId;
+  let nextPosition: number | undefined;
+
+  if (input.moduleId) {
+    const { data: existingLesson, error: existingLessonError } = await client
+      .from('program_lessons')
+      .select('module_id')
+      .eq('id', input.lessonId)
+      .single();
+
+    if (existingLessonError) throw existingLessonError;
+
+    if (existingLesson.module_id !== input.moduleId) {
+      const { data: latestLesson, error: latestLessonError } = await client
+        .from('program_lessons')
+        .select('position')
+        .eq('module_id', input.moduleId)
+        .order('position', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestLessonError) throw latestLessonError;
+      nextPosition = (latestLesson?.position ?? 0) + 1;
+    }
+  } else {
+    nextModuleId = undefined;
+  }
+
   const { data, error } = await client
     .from('program_lessons')
     .update({
+      ...(nextModuleId ? { module_id: nextModuleId } : {}),
+      ...(typeof nextPosition === 'number' ? { position: nextPosition } : {}),
       title: trimmedTitle,
       summary: input.summary?.trim() ?? '',
       video_url: input.videoUrl?.trim() || null,

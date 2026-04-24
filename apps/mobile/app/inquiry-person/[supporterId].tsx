@@ -291,7 +291,7 @@ export default function InquiryPersonScreen() {
   if (!isConfigured || !supabase) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Person record</Text>
           <Text style={styles.emptyBody}>Add your Supabase keys in `apps/mobile/.env` to view supporter records.</Text>
@@ -303,7 +303,7 @@ export default function InquiryPersonScreen() {
   if (sessionLoading || loading) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.emptyState}>
           <ActivityIndicator size="small" color={theme.colors.primaryStrong} />
           <Text style={styles.emptyBody}>Loading this person...</Text>
@@ -315,7 +315,7 @@ export default function InquiryPersonScreen() {
   if (!user) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.emptyState}>
           <Text style={styles.emptyBody}>Sign in to review submissions, calls, and enrolled programs.</Text>
         </View>
@@ -326,7 +326,7 @@ export default function InquiryPersonScreen() {
   if (!overview) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Person not found</Text>
           <Text style={styles.emptyBody}>This supporter does not have a linked inquiry submission yet.</Text>
@@ -337,12 +337,12 @@ export default function InquiryPersonScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
       <View style={styles.screen}>
         <View pointerEvents="none" style={styles.backgroundLayer}>
           <LinearGradient
-            colors={['#fbfdff', '#f6f9ff', '#fbfdff']}
+            colors={['#08101f', '#0b1326', '#111a2f']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.backgroundBase}
@@ -353,7 +353,7 @@ export default function InquiryPersonScreen() {
 
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={18} color={theme.colors.onSurfaceVariant} />
+            <Ionicons name="chevron-back" size={18} color={theme.colors.textPrimary} />
           </Pressable>
 
           <View style={styles.headerCopy}>
@@ -623,11 +623,11 @@ export default function InquiryPersonScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fbfdff'
+    backgroundColor: theme.colors.background
   },
   screen: {
     flex: 1,
-    backgroundColor: '#fbfdff'
+    backgroundColor: theme.colors.background
   },
   backgroundLayer: {
     ...StyleSheet.absoluteFillObject
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
     top: 94,
     right: -88,
     borderRadius: 999,
-    backgroundColor: 'rgba(126, 186, 255, 0.16)'
+    backgroundColor: 'rgba(77, 142, 255, 0.12)'
   },
   backgroundGlowSecondary: {
     position: 'absolute',
@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
     bottom: 120,
     left: -68,
     borderRadius: 999,
-    backgroundColor: 'rgba(161, 208, 255, 0.14)'
+    backgroundColor: 'rgba(120, 93, 255, 0.12)'
   },
   header: {
     minHeight: 68,
@@ -664,7 +664,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.88)',
+    backgroundColor: theme.colors.surfaceContainerHighest,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -698,9 +700,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 18,
     paddingVertical: 18,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     gap: 16,
-    shadowColor: 'rgba(25, 28, 30, 0.06)',
+    shadowColor: '#050910',
     shadowOpacity: 1,
     shadowRadius: 18,
     shadowOffset: {
@@ -757,12 +761,12 @@ const styles = StyleSheet.create({
     minHeight: 30,
     paddingHorizontal: 10,
     borderRadius: 999,
-    backgroundColor: '#eef4ff',
+    backgroundColor: theme.colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center'
   },
   statusBadgeText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.7,
@@ -777,14 +781,14 @@ const styles = StyleSheet.create({
     minHeight: 42,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#dbe6f8',
-    backgroundColor: '#f9fbff',
+    borderColor: theme.colors.outlineSoft,
+    backgroundColor: theme.colors.surfaceContainerHighest,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10
   },
   secondaryActionText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 13,
     fontWeight: '700'
   },
@@ -814,15 +818,15 @@ const styles = StyleSheet.create({
     minHeight: 34,
     borderRadius: 999,
     paddingHorizontal: 12,
-    backgroundColor: '#f3f6fb',
+    backgroundColor: theme.colors.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: '#d9e2f2',
+    borderColor: theme.colors.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center'
   },
   stageChipActive: {
-    backgroundColor: '#e7f0ff',
-    borderColor: '#bfd4ff'
+    backgroundColor: theme.colors.primarySoft,
+    borderColor: 'rgba(77, 142, 255, 0.34)'
   },
   stageChipText: {
     color: theme.colors.textSecondary,
@@ -830,10 +834,10 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   stageChipTextActive: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   feedbackText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textSecondary,
     fontSize: 13,
     lineHeight: 20
   },
@@ -841,8 +845,18 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 18,
     paddingVertical: 18,
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    gap: 8
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    gap: 8,
+    shadowColor: '#050910',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: {
+      width: 0,
+      height: 10
+    },
+    elevation: 3
   },
   sectionEyebrow: {
     color: theme.colors.textMuted,
@@ -897,8 +911,8 @@ const styles = StyleSheet.create({
   callRow: {
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#e3eaf6',
-    backgroundColor: '#fbfdff',
+    borderColor: theme.colors.outlineSoft,
+    backgroundColor: theme.colors.surfaceContainerHighest,
     paddingHorizontal: 14,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -922,7 +936,7 @@ const styles = StyleSheet.create({
     minHeight: 28,
     paddingHorizontal: 10,
     borderRadius: 999,
-    backgroundColor: '#f1f5fb',
+    backgroundColor: theme.colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -939,8 +953,8 @@ const styles = StyleSheet.create({
   programRow: {
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#e3eaf6',
-    backgroundColor: '#fbfdff',
+    borderColor: theme.colors.outlineSoft,
+    backgroundColor: theme.colors.surfaceContainerHighest,
     paddingHorizontal: 12,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -987,7 +1001,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: 5,
     borderRadius: 999,
-    backgroundColor: '#eef2f7',
+    backgroundColor: theme.colors.surfaceContainerHighest,
     overflow: 'hidden'
   },
   progressFill: {
@@ -1009,7 +1023,9 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.98)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     paddingHorizontal: 18,
     paddingTop: 18,
     paddingBottom: 18,
@@ -1029,7 +1045,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: '#f3f5f9',
+    backgroundColor: theme.colors.surfaceContainerHighest,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -1039,8 +1055,8 @@ const styles = StyleSheet.create({
   modalProgramCard: {
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#e2e8f5',
-    backgroundColor: '#fbfdff',
+    borderColor: theme.colors.outlineSoft,
+    backgroundColor: theme.colors.surfaceContainerHighest,
     paddingHorizontal: 16,
     paddingVertical: 14,
     flexDirection: 'row',

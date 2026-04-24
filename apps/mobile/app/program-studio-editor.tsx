@@ -5,14 +5,18 @@ import { type InboxThreadSummary, type ProgramDetail, type ProgramLearner } from
 import {
   createProgram,
   createProgramLesson,
+  createProgramModule,
   deleteProgramLesson,
+  deleteProgramModule,
   enrollStudentInProgram,
   getProgramDetails,
   listInboxThreads,
   removeStudentFromProgram,
+  reorderProgramModule,
   reorderProgramLesson,
   updateProgram,
   updateProgramLesson,
+  updateProgramModule,
   uploadProgramLessonAsset,
   uploadProgramThumbnail
 } from '@syncrolly/data';
@@ -193,11 +197,18 @@ export default function ProgramStudioEditorScreen() {
   const [lessonSummary, setLessonSummary] = useState('');
   const [pendingLessonAsset, setPendingLessonAsset] = useState<PendingUploadLessonAsset | null>(null);
   const [lessonDurationLabel, setLessonDurationLabel] = useState('');
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [savingLesson, setSavingLesson] = useState(false);
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [deletingLessonId, setDeletingLessonId] = useState<string | null>(null);
   const [movingLessonId, setMovingLessonId] = useState<string | null>(null);
   const [removeCurrentLessonAsset, setRemoveCurrentLessonAsset] = useState(false);
+  const [moduleDrafts, setModuleDrafts] = useState<Record<string, { title: string; summary: string }>>({});
+  const [newModuleTitle, setNewModuleTitle] = useState('');
+  const [savingModuleId, setSavingModuleId] = useState<string | null>(null);
+  const [creatingModule, setCreatingModule] = useState(false);
+  const [deletingModuleId, setDeletingModuleId] = useState<string | null>(null);
+  const [movingModuleId, setMovingModuleId] = useState<string | null>(null);
 
   const [contactSearch, setContactSearch] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -224,6 +235,8 @@ export default function ProgramStudioEditorScreen() {
   );
   const selectedStudent = availableContacts.find((contact) => contact.participantId === selectedStudentId) ?? null;
   const editingLesson = activeProgram?.lessons.find((lesson) => lesson.id === editingLessonId) ?? null;
+  const resolvedModules = activeProgram?.modules ?? [];
+  const selectedModule = resolvedModules.find((module) => module.id === selectedModuleId) ?? resolvedModules[0] ?? null;
 
   useEffect(() => {
     if (!supabase || !user || role !== 'creator') {
@@ -234,6 +247,32 @@ export default function ProgramStudioEditorScreen() {
 
     void loadEditor(routeProgramId ?? null);
   }, [role, routeProgramId, supabase, user?.id]);
+
+  useEffect(() => {
+    if (!activeProgram) {
+      setModuleDrafts({});
+      setSelectedModuleId(null);
+      return;
+    }
+
+    setModuleDrafts(
+      Object.fromEntries(
+        activeProgram.modules.map((module) => [
+          module.id,
+          {
+            title: module.title,
+            summary: module.summary
+          }
+        ])
+      )
+    );
+
+    setSelectedModuleId((current) =>
+      current && activeProgram.modules.some((module) => module.id === current)
+        ? current
+        : activeProgram.modules[0]?.id ?? null
+    );
+  }, [activeProgram?.id, activeProgram?.modules]);
 
   useEffect(() => {
     if (!feedback || feedback.tone === 'error') {
@@ -414,6 +453,16 @@ export default function ProgramStudioEditorScreen() {
       return;
     }
 
+    const targetModuleId = selectedModuleId ?? activeProgram.modules[0]?.id;
+
+    if (!targetModuleId) {
+      setFeedback({
+        tone: 'error',
+        message: 'Add a module before adding lessons.'
+      });
+      return;
+    }
+
     if (!pendingLessonAsset && !editingLesson) {
       setFeedback({
         tone: 'error',
@@ -440,6 +489,7 @@ export default function ProgramStudioEditorScreen() {
       if (editingLesson) {
         await updateProgramLesson(supabase, {
           lessonId: editingLesson.id,
+          moduleId: targetModuleId,
           title: lessonTitle,
           summary: lessonSummary,
           videoUrl: uploadedAssetUrl,
@@ -448,6 +498,7 @@ export default function ProgramStudioEditorScreen() {
       } else {
         await createProgramLesson(supabase, {
           programId: activeProgram.id,
+          moduleId: targetModuleId,
           title: lessonTitle,
           summary: lessonSummary,
           videoUrl: uploadedAssetUrl,
@@ -476,6 +527,7 @@ export default function ProgramStudioEditorScreen() {
     setLessonTitle(lesson.title);
     setLessonSummary(lesson.summary);
     setLessonDurationLabel(lesson.durationLabel ?? '');
+    setSelectedModuleId(lesson.moduleId);
     setPendingLessonAsset(null);
     setRemoveCurrentLessonAsset(false);
     setActiveTab('structure');
@@ -539,20 +591,23 @@ export default function ProgramStudioEditorScreen() {
     }
   }
 
-  async function handleMoveLesson(lessonId: string, direction: -1 | 1) {
+  async function handleMoveLesson(moduleId: string, lessonId: string, direction: -1 | 1) {
     if (!supabase || !activeProgram || movingLessonId) {
       return;
     }
 
-    const currentIndex = activeProgram.lessons.findIndex((lesson) => lesson.id === lessonId);
+    const moduleLessons = activeProgram.lessons
+      .filter((lesson) => lesson.moduleId === moduleId)
+      .sort((left, right) => left.position - right.position);
+    const currentIndex = moduleLessons.findIndex((lesson) => lesson.id === lessonId);
     const targetIndex = currentIndex + direction;
 
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= activeProgram.lessons.length) {
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= moduleLessons.length) {
       return;
     }
 
-    const currentLesson = activeProgram.lessons[currentIndex];
-    const targetLesson = activeProgram.lessons[targetIndex];
+    const currentLesson = moduleLessons[currentIndex];
+    const targetLesson = moduleLessons[targetIndex];
 
     setMovingLessonId(lessonId);
     setFeedback(null);
@@ -573,6 +628,197 @@ export default function ProgramStudioEditorScreen() {
       });
     } finally {
       setMovingLessonId(null);
+    }
+  }
+
+  async function handleCreateModule() {
+    if (!supabase || !activeProgram || creatingModule) {
+      return;
+    }
+
+    if (!newModuleTitle.trim()) {
+      setFeedback({
+        tone: 'error',
+        message: 'Add a module title.'
+      });
+      return;
+    }
+
+    setCreatingModule(true);
+    setFeedback(null);
+
+    try {
+      const createdModule = await createProgramModule(supabase, {
+        programId: activeProgram.id,
+        title: newModuleTitle
+      });
+
+      setNewModuleTitle('');
+      setSelectedModuleId(createdModule.id);
+      setFeedback({
+        tone: 'success',
+        message: 'Module added.'
+      });
+      await loadEditor(activeProgram.id);
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: getErrorMessage(error)
+      });
+    } finally {
+      setCreatingModule(false);
+    }
+  }
+
+  async function handleSaveModule(moduleId: string) {
+    if (!supabase || !activeProgram || savingModuleId) {
+      return;
+    }
+
+    const draft = moduleDrafts[moduleId];
+    const currentModule = activeProgram.modules.find((module) => module.id === moduleId);
+
+    if (!draft || !currentModule) {
+      return;
+    }
+
+    if (!draft.title.trim()) {
+      setFeedback({
+        tone: 'error',
+        message: 'Module title cannot be empty.'
+      });
+      return;
+    }
+
+    if (draft.title.trim() === currentModule.title && draft.summary.trim() === currentModule.summary) {
+      return;
+    }
+
+    setSavingModuleId(moduleId);
+    setFeedback(null);
+
+    try {
+      await updateProgramModule(supabase, {
+        moduleId,
+        title: draft.title,
+        summary: draft.summary
+      });
+
+      setFeedback({
+        tone: 'success',
+        message: 'Module updated.'
+      });
+      await loadEditor(activeProgram.id);
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: getErrorMessage(error)
+      });
+    } finally {
+      setSavingModuleId(null);
+    }
+  }
+
+  function handleDeleteModule(moduleId: string) {
+    if (!activeProgram || deletingModuleId) {
+      return;
+    }
+
+    const currentModule = activeProgram.modules.find((module) => module.id === moduleId);
+
+    if (!currentModule) {
+      return;
+    }
+
+    Alert.alert(
+      'Delete module?',
+      currentModule.lessonCount
+        ? 'This will delete the module and all lessons inside it, including saved progress.'
+        : 'This will delete the empty module.',
+      [
+        {
+          text: 'Keep',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void confirmDeleteModule(moduleId);
+          }
+        }
+      ]
+    );
+  }
+
+  async function confirmDeleteModule(moduleId: string) {
+    if (!supabase || !activeProgram) {
+      return;
+    }
+
+    setDeletingModuleId(moduleId);
+    setFeedback(null);
+
+    try {
+      await deleteProgramModule(supabase, {
+        moduleId,
+        programId: activeProgram.id
+      });
+
+      if (selectedModuleId === moduleId) {
+        setSelectedModuleId(null);
+      }
+
+      setFeedback({
+        tone: 'success',
+        message: 'Module deleted.'
+      });
+      await loadEditor(activeProgram.id);
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: getErrorMessage(error)
+      });
+    } finally {
+      setDeletingModuleId(null);
+    }
+  }
+
+  async function handleMoveModule(moduleId: string, direction: -1 | 1) {
+    if (!supabase || !activeProgram || movingModuleId) {
+      return;
+    }
+
+    const modules = [...activeProgram.modules].sort((left, right) => left.position - right.position);
+    const currentIndex = modules.findIndex((module) => module.id === moduleId);
+    const targetIndex = currentIndex + direction;
+
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= modules.length) {
+      return;
+    }
+
+    const currentModule = modules[currentIndex];
+    const targetModule = modules[targetIndex];
+
+    setMovingModuleId(moduleId);
+    setFeedback(null);
+
+    try {
+      await reorderProgramModule(supabase, {
+        moduleId: currentModule.id,
+        swapModuleId: targetModule.id,
+        currentPosition: currentModule.position,
+        targetPosition: targetModule.position
+      });
+
+      await loadEditor(activeProgram.id);
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: getErrorMessage(error)
+      });
+    } finally {
+      setMovingModuleId(null);
     }
   }
 
@@ -723,6 +969,7 @@ export default function ProgramStudioEditorScreen() {
     }
 
     setActiveTab('structure');
+    setSelectedModuleId((current) => current ?? activeProgram.modules[0]?.id ?? null);
     requestAnimationFrame(() => {
       scrollViewRef.current?.scrollTo({
         y: Math.max(lessonComposerOffsetRef.current - 24, 0),
@@ -779,6 +1026,7 @@ export default function ProgramStudioEditorScreen() {
   const thumbnailPreviewUri = pendingThumbnail?.previewUri ?? thumbnailUrl;
   const thumbnailGradient = getProgramFallbackGradient((activeProgram?.id ?? programTitle.trim()) || 'program-studio');
   const draftProgramTitle = programTitle.trim() || activeProgram?.title || 'Untitled Program';
+  const moduleCountLabel = activeProgram?.moduleCount === 1 ? '1 module' : `${activeProgram?.moduleCount ?? 0} modules`;
   const lessonCountLabel = activeProgram?.lessonCount === 1 ? '1 lesson' : `${activeProgram?.lessonCount ?? 0} lessons`;
   const resolvedLessons = activeProgram?.lessons ?? [];
   const readyLessonCount = resolvedLessons.filter((lesson) => Boolean(lesson.videoUrl)).length;
@@ -1009,12 +1257,12 @@ export default function ProgramStudioEditorScreen() {
                 <View style={styles.programOutlineCard}>
                   <View style={styles.programOutlineHeader}>
                     <View style={styles.programOutlineGrip}>
-                      <Ionicons name="reorder-three-outline" size={18} color="#7c8496" />
+                      <Ionicons name="albums-outline" size={18} color="#7c8496" />
                     </View>
 
                     <View style={styles.programOutlineHeaderCopy}>
-                      <Text style={styles.programOutlineTitle}>Program lessons</Text>
-                      <Text style={styles.programOutlineMeta}>{lessonCountLabel} - video or documents</Text>
+                      <Text style={styles.programOutlineTitle}>Program structure</Text>
+                      <Text style={styles.programOutlineMeta}>{moduleCountLabel} - {lessonCountLabel}</Text>
                     </View>
                   </View>
 
@@ -1038,110 +1286,230 @@ export default function ProgramStudioEditorScreen() {
                   </View>
 
                   <View style={styles.programOutlineSheet}>
-                    {activeProgram.lessons.length ? (
-                      activeProgram.lessons.map((lesson, index) => (
-                        <View key={lesson.id} style={styles.programLessonRow}>
-                          <View style={styles.programLessonDrag}>
-                            <Ionicons name="reorder-two-outline" size={15} color="#c1c7d3" />
-                          </View>
+                    {resolvedModules.length ? (
+                      resolvedModules.map((module, moduleIndex) => {
+                        const moduleDraft = moduleDrafts[module.id] ?? { title: module.title, summary: module.summary };
 
-                          <View
-                            style={[
-                              styles.programLessonIcon,
-                              getLessonAssetKind(lesson.videoUrl) === 'video'
-                                ? styles.programLessonIconVideo
-                                : getLessonAssetKind(lesson.videoUrl) === 'document'
-                                  ? styles.programLessonIconDocument
-                                  : styles.programLessonIconDraft
-                            ]}
-                          >
-                            <Ionicons
-                              name={
-                                getLessonAssetKind(lesson.videoUrl) === 'video'
-                                  ? 'play'
-                                  : getLessonAssetKind(lesson.videoUrl) === 'document'
-                                    ? 'document-text'
-                                    : 'document-text-outline'
-                              }
-                              size={16}
-                              color={getLessonAssetKind(lesson.videoUrl) === 'video' ? theme.colors.primaryStrong : '#677489'}
-                            />
-                          </View>
+                        return (
+                          <View key={module.id} style={styles.programModuleCard}>
+                            <View style={styles.programModuleHeader}>
+                              <View style={styles.programModuleNumber}>
+                                <Text style={styles.programModuleNumberText}>{moduleIndex + 1}</Text>
+                              </View>
 
-                          <View style={styles.programLessonCopy}>
-                            <Text style={styles.programLessonTitle}>
-                              {index + 1}. {lesson.title}
-                            </Text>
-                            <View style={styles.programLessonMetaRow}>
-                              <Text style={styles.programLessonMeta}>{getLessonAssetLabel(lesson.videoUrl, lesson.durationLabel)}</Text>
-                              <View
-                                style={[
-                                  styles.lessonStatusPill,
-                                  lesson.videoUrl ? styles.lessonStatusPillReady : styles.lessonStatusPillDraft
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.lessonStatusText,
-                                    lesson.videoUrl ? styles.lessonStatusTextReady : null
-                                  ]}
-                                >
-                                  {lesson.videoUrl ? 'Ready' : 'Draft'}
+                              <View style={styles.programModuleCopy}>
+                                <TextInput
+                                  value={moduleDraft.title}
+                                  onChangeText={(value) =>
+                                    setModuleDrafts((current) => ({
+                                      ...current,
+                                      [module.id]: {
+                                        title: value,
+                                        summary: current[module.id]?.summary ?? module.summary
+                                      }
+                                    }))
+                                  }
+                                  onBlur={() => void handleSaveModule(module.id)}
+                                  placeholder="Module title"
+                                  placeholderTextColor={theme.colors.textMuted}
+                                  style={styles.programModuleTitleInput}
+                                />
+                                <Text style={styles.programModuleMeta}>
+                                  {module.lessonCount === 1 ? '1 lesson' : `${module.lessonCount} lessons`} - {module.progressPercent}% built
                                 </Text>
                               </View>
-                            </View>
-                          </View>
 
-                          <View style={styles.programLessonActions}>
-                            <Pressable
-                              style={styles.lessonActionButton}
-                              onPress={() => void handleMoveLesson(lesson.id, -1)}
-                              disabled={index === 0 || movingLessonId === lesson.id}
-                            >
-                              <Ionicons
-                                name="chevron-up"
-                                size={16}
-                                color={index === 0 ? '#c6ccda' : theme.colors.textSecondary}
-                              />
-                            </Pressable>
-                            <Pressable
-                              style={styles.lessonActionButton}
-                              onPress={() => void handleMoveLesson(lesson.id, 1)}
-                              disabled={index === activeProgram.lessons.length - 1 || movingLessonId === lesson.id}
-                            >
-                              <Ionicons
-                                name="chevron-down"
-                                size={16}
-                                color={index === activeProgram.lessons.length - 1 ? '#c6ccda' : theme.colors.textSecondary}
-                              />
-                            </Pressable>
-                            <Pressable style={styles.lessonActionButton} onPress={() => handleEditLesson(lesson)}>
-                              <Ionicons name="create-outline" size={15} color={theme.colors.textSecondary} />
-                            </Pressable>
-                            <Pressable
-                              style={styles.lessonActionButton}
-                              onPress={() => handleDeleteLesson(lesson)}
-                              disabled={deletingLessonId === lesson.id}
-                            >
-                              {deletingLessonId === lesson.id ? (
-                                <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                              <View style={styles.programModuleActions}>
+                                <Pressable
+                                  style={styles.lessonActionButton}
+                                  onPress={() => void handleMoveModule(module.id, -1)}
+                                  disabled={moduleIndex === 0 || movingModuleId === module.id}
+                                >
+                                  <Ionicons
+                                    name="chevron-up"
+                                    size={16}
+                                    color={moduleIndex === 0 ? '#c6ccda' : theme.colors.textSecondary}
+                                  />
+                                </Pressable>
+                                <Pressable
+                                  style={styles.lessonActionButton}
+                                  onPress={() => void handleMoveModule(module.id, 1)}
+                                  disabled={moduleIndex === resolvedModules.length - 1 || movingModuleId === module.id}
+                                >
+                                  <Ionicons
+                                    name="chevron-down"
+                                    size={16}
+                                    color={moduleIndex === resolvedModules.length - 1 ? '#c6ccda' : theme.colors.textSecondary}
+                                  />
+                                </Pressable>
+                                <Pressable
+                                  style={styles.lessonActionButton}
+                                  onPress={() => void handleSaveModule(module.id)}
+                                  disabled={savingModuleId === module.id}
+                                >
+                                  {savingModuleId === module.id ? (
+                                    <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                                  ) : (
+                                    <Ionicons name="checkmark" size={15} color={theme.colors.textSecondary} />
+                                  )}
+                                </Pressable>
+                                <Pressable
+                                  style={styles.lessonActionButton}
+                                  onPress={() => handleDeleteModule(module.id)}
+                                  disabled={deletingModuleId === module.id || resolvedModules.length <= 1}
+                                >
+                                  {deletingModuleId === module.id ? (
+                                    <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                                  ) : (
+                                    <Ionicons
+                                      name="trash-outline"
+                                      size={15}
+                                      color={resolvedModules.length <= 1 ? '#c6ccda' : theme.colors.textSecondary}
+                                    />
+                                  )}
+                                </Pressable>
+                              </View>
+                            </View>
+
+                            <View style={styles.programModuleLessonList}>
+                              {module.lessons.length ? (
+                                module.lessons.map((lesson, index) => (
+                                  <View key={lesson.id} style={styles.programLessonRow}>
+                                    <View style={styles.programLessonDrag}>
+                                      <Text style={styles.programLessonPosition}>{index + 1}</Text>
+                                    </View>
+
+                                    <View
+                                      style={[
+                                        styles.programLessonIcon,
+                                        getLessonAssetKind(lesson.videoUrl) === 'video'
+                                          ? styles.programLessonIconVideo
+                                          : getLessonAssetKind(lesson.videoUrl) === 'document'
+                                            ? styles.programLessonIconDocument
+                                            : styles.programLessonIconDraft
+                                      ]}
+                                    >
+                                      <Ionicons
+                                        name={
+                                          getLessonAssetKind(lesson.videoUrl) === 'video'
+                                            ? 'play'
+                                            : getLessonAssetKind(lesson.videoUrl) === 'document'
+                                              ? 'document-text'
+                                              : 'document-text-outline'
+                                        }
+                                        size={16}
+                                        color={getLessonAssetKind(lesson.videoUrl) === 'video' ? theme.colors.primaryStrong : '#677489'}
+                                      />
+                                    </View>
+
+                                    <View style={styles.programLessonCopy}>
+                                      <Text style={styles.programLessonTitle}>{lesson.title}</Text>
+                                      <View style={styles.programLessonMetaRow}>
+                                        <Text style={styles.programLessonMeta}>{getLessonAssetLabel(lesson.videoUrl, lesson.durationLabel)}</Text>
+                                        <View
+                                          style={[
+                                            styles.lessonStatusPill,
+                                            lesson.videoUrl ? styles.lessonStatusPillReady : styles.lessonStatusPillDraft
+                                          ]}
+                                        >
+                                          <Text
+                                            style={[
+                                              styles.lessonStatusText,
+                                              lesson.videoUrl ? styles.lessonStatusTextReady : null
+                                            ]}
+                                          >
+                                            {lesson.videoUrl ? 'Ready' : 'Draft'}
+                                          </Text>
+                                        </View>
+                                      </View>
+                                    </View>
+
+                                    <View style={styles.programLessonActions}>
+                                      <Pressable
+                                        style={styles.lessonActionButton}
+                                        onPress={() => void handleMoveLesson(module.id, lesson.id, -1)}
+                                        disabled={index === 0 || movingLessonId === lesson.id}
+                                      >
+                                        <Ionicons
+                                          name="chevron-up"
+                                          size={16}
+                                          color={index === 0 ? '#c6ccda' : theme.colors.textSecondary}
+                                        />
+                                      </Pressable>
+                                      <Pressable
+                                        style={styles.lessonActionButton}
+                                        onPress={() => void handleMoveLesson(module.id, lesson.id, 1)}
+                                        disabled={index === module.lessons.length - 1 || movingLessonId === lesson.id}
+                                      >
+                                        <Ionicons
+                                          name="chevron-down"
+                                          size={16}
+                                          color={index === module.lessons.length - 1 ? '#c6ccda' : theme.colors.textSecondary}
+                                        />
+                                      </Pressable>
+                                      <Pressable style={styles.lessonActionButton} onPress={() => handleEditLesson(lesson)}>
+                                        <Ionicons name="create-outline" size={15} color={theme.colors.textSecondary} />
+                                      </Pressable>
+                                      <Pressable
+                                        style={styles.lessonActionButton}
+                                        onPress={() => handleDeleteLesson(lesson)}
+                                        disabled={deletingLessonId === lesson.id}
+                                      >
+                                        {deletingLessonId === lesson.id ? (
+                                          <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                                        ) : (
+                                          <Ionicons name="trash-outline" size={15} color={theme.colors.textSecondary} />
+                                        )}
+                                      </Pressable>
+                                    </View>
+                                  </View>
+                                ))
                               ) : (
-                                <Ionicons name="trash-outline" size={15} color={theme.colors.textSecondary} />
+                                <View style={styles.emptyInset}>
+                                  <Text style={styles.emptyInsetText}>No lessons in this module yet.</Text>
+                                </View>
                               )}
+                            </View>
+
+                            <Pressable
+                              style={styles.outlineAddLessonRow}
+                              onPress={() => {
+                                setSelectedModuleId(module.id);
+                                handleJumpToLessonComposer();
+                              }}
+                            >
+                              <Ionicons name="add-circle" size={16} color="#6b7280" />
+                              <Text style={styles.outlineAddLessonText}>Add lesson to this module</Text>
                             </Pressable>
                           </View>
-                        </View>
-                      ))
+                        );
+                      })
                     ) : (
                       <View style={styles.emptyInset}>
-                        <Text style={styles.emptyInsetText}>No lessons yet. Add the first one below.</Text>
+                        <Text style={styles.emptyInsetText}>No modules yet. Add the first module below.</Text>
                       </View>
                     )}
 
-                    <Pressable style={styles.outlineAddLessonRow} onPress={handleJumpToLessonComposer}>
-                      <Ionicons name="add-circle" size={16} color="#6b7280" />
-                      <Text style={styles.outlineAddLessonText}>Add lesson</Text>
-                    </Pressable>
+                    <View style={styles.addModuleRow}>
+                      <TextInput
+                        value={newModuleTitle}
+                        onChangeText={setNewModuleTitle}
+                        placeholder="Module 2: Foundations"
+                        placeholderTextColor={theme.colors.textMuted}
+                        style={styles.addModuleInput}
+                      />
+                      <Pressable
+                        style={[styles.addModuleButton, creatingModule && styles.primaryButtonDisabled]}
+                        onPress={() => void handleCreateModule()}
+                        disabled={creatingModule}
+                      >
+                        {creatingModule ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <Ionicons name="add" size={18} color="#ffffff" />
+                        )}
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
 
@@ -1159,12 +1527,33 @@ export default function ProgramStudioEditorScreen() {
                   </View>
 
                   <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Module</Text>
+                    <View style={styles.modulePickerRow}>
+                      {resolvedModules.map((module) => {
+                        const isSelected = selectedModule?.id === module.id;
+
+                        return (
+                          <Pressable
+                            key={module.id}
+                            style={[styles.modulePickerChip, isSelected && styles.modulePickerChipActive]}
+                            onPress={() => setSelectedModuleId(module.id)}
+                          >
+                            <Text style={[styles.modulePickerChipText, isSelected && styles.modulePickerChipTextActive]}>
+                              {module.title}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Lesson title</Text>
                     <TextInput
                       value={lessonTitle}
                       onChangeText={setLessonTitle}
                       placeholder="Lesson 1: Positioning your offer"
-                      placeholderTextColor="rgba(66, 71, 82, 0.55)"
+                      placeholderTextColor={theme.colors.textMuted}
                       style={styles.textInput}
                     />
                   </View>
@@ -1175,7 +1564,7 @@ export default function ProgramStudioEditorScreen() {
                       value={lessonSummary}
                       onChangeText={setLessonSummary}
                       placeholder="One short paragraph on what the learner should focus on."
-                      placeholderTextColor="rgba(66, 71, 82, 0.55)"
+                      placeholderTextColor={theme.colors.textMuted}
                       style={[styles.textInput, styles.textAreaSmall]}
                       multiline
                       textAlignVertical="top"
@@ -1357,7 +1746,7 @@ export default function ProgramStudioEditorScreen() {
                       value={contactSearch}
                       onChangeText={setContactSearch}
                       placeholder="Search active conversations"
-                      placeholderTextColor="rgba(66, 71, 82, 0.55)"
+                      placeholderTextColor={theme.colors.textMuted}
                       style={styles.textInput}
                     />
                   </View>
@@ -1697,8 +2086,8 @@ const styles = StyleSheet.create({
     gap: 6
   },
   readinessChipComplete: {
-    backgroundColor: '#eef4ff',
-    borderColor: '#cbd9fb'
+    backgroundColor: theme.colors.primarySoft,
+    borderColor: 'rgba(77, 142, 255, 0.34)'
   },
   readinessChipText: {
     color: theme.colors.textSecondary,
@@ -1706,7 +2095,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   readinessChipTextComplete: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   readinessCaption: {
     color: theme.colors.textSecondary,
@@ -1936,6 +2325,33 @@ const styles = StyleSheet.create({
     gap: 10,
     flexWrap: 'wrap'
   },
+  modulePickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  modulePickerChip: {
+    minHeight: 34,
+    borderRadius: 999,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  modulePickerChipActive: {
+    backgroundColor: theme.colors.primarySoft,
+    borderColor: theme.colors.primaryStrong
+  },
+  modulePickerChipText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800'
+  },
+  modulePickerChipTextActive: {
+    color: theme.colors.textPrimary
+  },
   programOutlineCard: {
     borderRadius: 18,
     backgroundColor: theme.colors.surfaceContainerLowest,
@@ -2013,6 +2429,85 @@ const styles = StyleSheet.create({
     padding: 6,
     backgroundColor: theme.colors.surfaceContainerLowest
   },
+  programModuleCard: {
+    borderRadius: 14,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    padding: 8,
+    gap: 8
+  },
+  programModuleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 4,
+    paddingVertical: 4
+  },
+  programModuleNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surfaceContainerHighest,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  programModuleNumberText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '900'
+  },
+  programModuleCopy: {
+    flex: 1,
+    gap: 2
+  },
+  programModuleTitleInput: {
+    color: theme.colors.textPrimary,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '800',
+    paddingVertical: 0
+  },
+  programModuleMeta: {
+    color: theme.colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  programModuleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
+  programModuleLessonList: {
+    gap: 6
+  },
+  addModuleRow: {
+    marginTop: 6,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  addModuleInput: {
+    flex: 1,
+    minHeight: 38,
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    paddingHorizontal: 6
+  },
+  addModuleButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    backgroundColor: theme.colors.primaryStrong,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   programLessonRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2027,6 +2522,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
+  programLessonPosition: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: '900'
+  },
   programLessonIcon: {
     width: 42,
     height: 42,
@@ -2035,26 +2535,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   programLessonIconVideo: {
-    backgroundColor: '#dfe8ff'
+    backgroundColor: theme.colors.primarySoft
   },
   programLessonIconDocument: {
-    backgroundColor: '#e9eef8'
+    backgroundColor: theme.colors.surfaceContainerHighest
   },
   programLessonIconDraft: {
-    backgroundColor: '#e7edf8'
+    backgroundColor: theme.colors.warningSoft
   },
   programLessonCopy: {
     flex: 1,
     gap: 3
   },
   programLessonTitle: {
-    color: '#20242b',
+    color: theme.colors.textPrimary,
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '700'
   },
   programLessonMeta: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textSecondary,
     fontSize: 12,
     fontWeight: '700'
   },
@@ -2070,23 +2570,23 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#eef2f7'
+    backgroundColor: theme.colors.surfaceContainerHighest
   },
   lessonStatusPillReady: {
-    backgroundColor: '#e8f6ed'
+    backgroundColor: theme.colors.successSoft
   },
   lessonStatusPillDraft: {
-    backgroundColor: '#fef3e8'
+    backgroundColor: theme.colors.warningSoft
   },
   lessonStatusText: {
-    color: '#8a5d12',
+    color: theme.colors.warning,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.55,
     textTransform: 'uppercase'
   },
   lessonStatusTextReady: {
-    color: '#157347'
+    color: theme.colors.success
   },
   programLessonActions: {
     flexDirection: 'row',

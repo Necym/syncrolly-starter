@@ -19,6 +19,10 @@ function getNonEmptyString(value: unknown, fallback: string): string {
 }
 
 function getActionType(value: unknown): CreatorProfileCtaActionType {
+  if (value === 'direct_message') {
+    return 'direct_message';
+  }
+
   if (value === 'external_url') {
     return 'external_url';
   }

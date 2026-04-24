@@ -35,12 +35,12 @@ export default function FormToolsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
       <View style={styles.screen}>
         <View pointerEvents="none" style={styles.backgroundLayer}>
           <LinearGradient
-            colors={['#fbfdff', '#f4f8ff', '#f9fbff']}
+            colors={['#08101f', '#0b1326', '#111a2f']}
             end={{ x: 1, y: 1 }}
             start={{ x: 0, y: 0 }}
             style={styles.backgroundBase}
@@ -51,7 +51,7 @@ export default function FormToolsScreen() {
 
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.headerButton}>
-            <Ionicons name="arrow-back" size={20} color={theme.colors.onSurfaceVariant} />
+            <Ionicons name="arrow-back" size={20} color={theme.colors.textPrimary} />
           </Pressable>
 
           <View style={styles.headerCopy}>
@@ -76,7 +76,7 @@ export default function FormToolsScreen() {
                 style={styles.toolCard}
               >
                 <View style={styles.toolCardIcon}>
-                  <Ionicons name={card.icon} size={20} color={theme.colors.primaryStrong} />
+                  <Ionicons name={card.icon} size={20} color={theme.colors.textPrimary} />
                 </View>
 
                 <View style={styles.toolCardCopy}>
@@ -97,11 +97,11 @@ export default function FormToolsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fbfdff'
+    backgroundColor: theme.colors.background
   },
   screen: {
     flex: 1,
-    backgroundColor: '#fbfdff'
+    backgroundColor: theme.colors.background
   },
   backgroundLayer: {
     ...StyleSheet.absoluteFillObject
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     top: 70,
     right: -70,
     borderRadius: 999,
-    backgroundColor: 'rgba(126, 186, 255, 0.16)'
+    backgroundColor: 'rgba(77, 142, 255, 0.12)'
   },
   backgroundOrbSecondary: {
     position: 'absolute',
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     bottom: 120,
     left: -60,
     borderRadius: 999,
-    backgroundColor: 'rgba(170, 214, 255, 0.14)'
+    backgroundColor: 'rgba(120, 93, 255, 0.12)'
   },
   header: {
     minHeight: 68,
@@ -138,7 +138,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.88)',
+    backgroundColor: theme.colors.surfaceContainerHighest,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -172,7 +174,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 18,
     paddingVertical: 20,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     gap: 8
   },
   heroTitle: {
@@ -196,8 +200,10 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 18,
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    shadowColor: 'rgba(25, 28, 30, 0.05)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    shadowColor: '#050910',
     shadowOpacity: 1,
     shadowRadius: 18,
     shadowOffset: {
@@ -210,7 +216,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 16,
-    backgroundColor: '#eef4ff',
+    backgroundColor: theme.colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center'
   },

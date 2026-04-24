@@ -60,10 +60,10 @@ export function createCtaBlock(actionType: CreatorProfileCtaActionType = 'form')
       actionType === 'direct_message'
         ? 'Send a message and I will point you toward the right next step.'
         : actionType === 'form'
-        ? "Share where you are right now and I'll review the best next move."
-        : actionType === 'booking'
-          ? "Book a call directly and we'll hold a spot for a focused conversation."
-          : 'Use the button below to open the next step in your journey.',
+          ? "Share where you are right now and I'll review the best next move."
+          : actionType === 'booking'
+            ? "Book a call directly and we'll hold a spot for a focused conversation."
+            : 'Use the button below to open the next step in your journey.',
     buttonLabel:
       actionType === 'direct_message'
         ? 'Message me'
@@ -105,3 +105,4 @@ export function getEffectiveCreatorPageBlocks(
 
   return buildStarterCreatorPageBlocks(dmIntakePolicy);
 }
+

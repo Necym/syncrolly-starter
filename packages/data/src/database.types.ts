@@ -558,11 +558,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      program_modules: {
+        Row: {
+          created_at: string;
+          id: string;
+          position: number;
+          program_id: string;
+          summary: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          position: number;
+          program_id: string;
+          summary?: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          position?: number;
+          program_id?: string;
+          summary?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       program_lessons: {
         Row: {
           created_at: string;
           duration_label: string | null;
           id: string;
+          module_id: string;
           position: number;
           program_id: string;
           summary: string;
@@ -574,6 +605,7 @@ export type Database = {
           created_at?: string;
           duration_label?: string | null;
           id?: string;
+          module_id: string;
           position: number;
           program_id: string;
           summary?: string;
@@ -585,6 +617,7 @@ export type Database = {
           created_at?: string;
           duration_label?: string | null;
           id?: string;
+          module_id?: string;
           position?: number;
           program_id?: string;
           summary?: string;

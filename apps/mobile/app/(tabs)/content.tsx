@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '@syncrolly/config';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AmbientBackground from '../../components/AmbientBackground';
 
 const settingRows = [
   {
@@ -70,19 +70,10 @@ export default function SettingsMenuScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
       <View style={styles.screen}>
-        <View pointerEvents="none" style={styles.backgroundLayer}>
-          <LinearGradient
-            colors={['#fbfcff', '#f7f9fd', '#fdfefe']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.backgroundBase}
-          />
-          <View style={styles.backgroundGlowTop} />
-          <View style={styles.backgroundGlowBottom} />
-        </View>
+        <AmbientBackground />
 
         <View style={styles.header}>
           <View style={styles.headerSpacer} />
@@ -113,7 +104,7 @@ export default function SettingsMenuScreen() {
                     <Ionicons
                       name={row.icon}
                       size={20}
-                      color={isActive ? theme.colors.primaryStrong : '#5c6472'}
+                      color={isActive ? theme.colors.textPrimary : theme.colors.textSecondary}
                     />
                   </View>
 
@@ -122,7 +113,7 @@ export default function SettingsMenuScreen() {
                     {row.subtitle ? <Text style={styles.rowSubtitle}>{row.subtitle}</Text> : null}
                   </View>
 
-                  <Ionicons name="chevron-forward" size={18} color="#8b93a3" />
+                  <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
                 </Pressable>
               );
             })}
@@ -136,11 +127,11 @@ export default function SettingsMenuScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f7f8fb'
+    backgroundColor: theme.colors.background
   },
   screen: {
     flex: 1,
-    backgroundColor: '#f7f8fb'
+    backgroundColor: theme.colors.background
   },
   backgroundLayer: {
     ...StyleSheet.absoluteFillObject
@@ -155,7 +146,7 @@ const styles = StyleSheet.create({
     top: 36,
     right: -96,
     borderRadius: 999,
-    backgroundColor: 'rgba(91, 133, 255, 0.07)'
+    backgroundColor: 'rgba(77, 142, 255, 0.12)'
   },
   backgroundGlowBottom: {
     position: 'absolute',
@@ -164,7 +155,7 @@ const styles = StyleSheet.create({
     bottom: 80,
     left: -110,
     borderRadius: 999,
-    backgroundColor: 'rgba(188, 204, 255, 0.10)'
+    backgroundColor: 'rgba(120, 93, 255, 0.12)'
   },
   header: {
     minHeight: 62,
@@ -173,13 +164,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(218, 223, 232, 0.7)'
+    borderBottomColor: theme.colors.outlineSoft
   },
   headerSpacer: {
     width: 28
   },
   headerTitle: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 22,
     fontWeight: '800',
     fontFamily: theme.typography.headline
@@ -194,9 +185,11 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     paddingVertical: 6,
-    shadowColor: 'rgba(29, 41, 57, 0.08)',
+    shadowColor: '#050910',
     shadowOpacity: 1,
     shadowRadius: 24,
     shadowOffset: {
@@ -220,18 +213,18 @@ const styles = StyleSheet.create({
     marginBottom: 2
   },
   rowActive: {
-    backgroundColor: '#f6f8fd'
+    backgroundColor: theme.colors.surfaceContainerHighest
   },
   rowIconWrap: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#f1f2f5',
+    backgroundColor: theme.colors.surfaceContainerHighest,
     alignItems: 'center',
     justifyContent: 'center'
   },
   rowIconWrapActive: {
-    backgroundColor: '#eaf1ff'
+    backgroundColor: theme.colors.primarySoft
   },
   rowCopy: {
     flex: 1,

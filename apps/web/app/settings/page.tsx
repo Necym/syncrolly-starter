@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { BrandMark, Icon } from '../ui';
+import { Icon } from '../ui';
 
 const settingRows = [
   {
@@ -14,28 +14,35 @@ const settingRows = [
   {
     key: 'profile',
     title: 'Profile',
-    subtitle: '',
+    subtitle: 'Creator niche, headline, DM rules',
     icon: 'profile' as const,
     route: '/settings/profile'
   },
   {
     key: 'monetization',
     title: 'Monetization',
-    subtitle: '',
+    subtitle: 'Products, paid access, revenue tools',
     icon: 'stats' as const,
     route: null
   },
   {
+    key: 'programs',
+    title: 'Programs',
+    subtitle: 'Lessons, modules, learner progress',
+    icon: 'stats' as const,
+    route: '/program-studio'
+  },
+  {
     key: 'privacy',
     title: 'Privacy',
-    subtitle: '',
-    icon: 'notifications' as const,
+    subtitle: 'Visibility and contact controls',
+    icon: 'settings' as const,
     route: null
   },
   {
     key: 'notifications',
     title: 'Notifications',
-    subtitle: '',
+    subtitle: 'Inbox, forms, calls, and lead alerts',
     icon: 'notifications' as const,
     route: null
   },
@@ -49,67 +56,91 @@ const settingRows = [
   {
     key: 'security',
     title: 'Security',
-    subtitle: '',
+    subtitle: 'Sessions, devices, account protection',
     icon: 'settings' as const,
     route: null
   },
   {
     key: 'support',
     title: 'Help & Support',
-    subtitle: '',
+    subtitle: 'Guides, contact, and product help',
     icon: 'more' as const,
     route: null
   }
 ];
 
+const activeRows = settingRows.filter((row) => row.route);
+const dormantRows = settingRows.filter((row) => !row.route);
+
 export default function SettingsPage() {
   const router = useRouter();
 
   return (
-    <div className="thread-page web-settings-page">
-      <header className="settings-menu-header">
-        <div className="settings-menu-header-inner">
-          <button type="button" className="icon-button" onClick={() => router.push('/')} aria-label="Go back">
-            <Icon name="back" />
-          </button>
-          <h1>Settings</h1>
-          <div className="settings-menu-spacer" />
-        </div>
+    <div className="settings-desktop-page">
+      <header className="settings-desktop-topbar">
+        <button type="button" className="settings-desktop-back" onClick={() => router.push('/')}>
+          <Icon name="back" />
+          <span>Messages</span>
+        </button>
+        <p>Creator controls</p>
       </header>
 
-      <main className="settings-menu-main">
-        <div className="settings-menu-shell">
-          <div className="brand brand-wordmark settings-menu-brand">
-            <BrandMark />
-          </div>
+      <main className="settings-desktop-main">
+        <section className="settings-desktop-hero">
+          <p>Settings</p>
+          <h1>Manage the creator operating system.</h1>
+          <span>Profile, form intake, monetization, privacy, and account controls live here as the web app catches up to mobile.</span>
+        </section>
 
-          <section className="settings-menu-card">
-            {settingRows.map((row) => {
-              const isActive = Boolean(row.route);
+        <section className="settings-desktop-layout">
+          <div className="settings-desktop-primary">
+            <div className="settings-desktop-section-heading">
+              <span>Available now</span>
+              <p>These screens are wired on web and share data with the mobile app.</p>
+            </div>
 
-              return (
+            <div className="settings-desktop-action-grid">
+              {activeRows.map((row) => (
                 <button
                   key={row.key}
                   type="button"
-                  className={`settings-menu-row${isActive ? ' active' : ''}`}
-                  disabled={!row.route}
-                  onClick={row.route ? () => router.push(row.route) : undefined}
+                  className="settings-desktop-action"
+                  onClick={() => router.push(row.route ?? '/settings')}
                 >
-                  <div className={`settings-menu-row-icon${isActive ? ' active' : ''}`}>
+                  <span className="settings-desktop-action-icon">
                     <Icon name={row.icon} />
-                  </div>
-
-                  <div className="settings-menu-row-copy">
-                    <h2>{row.title}</h2>
-                    {row.subtitle ? <p>{row.subtitle}</p> : null}
-                  </div>
-
-                  <span className="settings-menu-row-chevron">›</span>
+                  </span>
+                  <span className="settings-desktop-action-copy">
+                    <strong>{row.title}</strong>
+                    <small>{row.subtitle}</small>
+                  </span>
+                  <span className="settings-desktop-action-arrow">Open</span>
                 </button>
-              );
-            })}
-          </section>
-        </div>
+              ))}
+            </div>
+          </div>
+
+          <aside className="settings-desktop-secondary">
+            <div className="settings-desktop-section-heading">
+              <span>Coming next</span>
+              <p>Visible for parity, not wired yet.</p>
+            </div>
+
+            <div className="settings-desktop-list">
+              {dormantRows.map((row) => (
+                <div key={row.key} className="settings-desktop-list-row">
+                  <span className="settings-desktop-list-icon">
+                    <Icon name={row.icon} />
+                  </span>
+                  <span>
+                    <strong>{row.title}</strong>
+                    <small>{row.subtitle}</small>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </section>
       </main>
     </div>
   );

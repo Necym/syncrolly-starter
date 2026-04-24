@@ -5,12 +5,13 @@ import { type ProgramSummary } from '@syncrolly/core';
 import { listPrograms } from '@syncrolly/data';
 import { StatusBar } from 'expo-status-bar';
 import { usePathname, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AmbientBackground from '../../components/AmbientBackground';
 import InlineNotice, { type InlineNoticeTone } from '../../components/InlineNotice';
 import SkeletonBlock from '../../components/SkeletonBlock';
-import { buildProgramFeedUpdates, getProgramFallbackGradient } from '../../lib/programs';
+import { getProgramFallbackGradient } from '../../lib/programs';
 import { getPreferredRole, useMobileSession } from '../../lib/session';
 
 type FeedTab = 'home' | 'programs';
@@ -61,7 +62,6 @@ export default function FeedScreen() {
   const [feedback, setFeedback] = useState<NoticeState | null>(null);
 
   const featuredProgram = programs[0] ?? null;
-  const updates = useMemo(() => buildProgramFeedUpdates(programs, role), [programs, role]);
   const totalStudents = programs.reduce((sum, program) => sum + program.enrolledCount, 0);
 
   useEffect(() => {
@@ -147,27 +147,12 @@ export default function FeedScreen() {
       <StatusBar style="light" />
 
       <View style={styles.screen}>
-        <View pointerEvents="none" style={styles.backgroundLayer}>
-          <LinearGradient
-            colors={['#060e20', '#0b1326', '#131b2e']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.backgroundBase}
-          />
-          <View style={styles.backgroundGlowTop} />
-          <View style={styles.backgroundGlowBottom} />
-        </View>
+        <AmbientBackground />
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <View style={styles.headerCopy}>
-              <Text style={styles.headerEyebrow}>{role === 'creator' ? 'Creator feed' : 'Learning feed'}</Text>
               <Text style={styles.headerTitle}>Feed</Text>
-              <Text style={styles.headerBody}>
-                {role === 'creator'
-                  ? 'Create real programs, add lessons in order, and enroll students from your pipeline.'
-                  : 'Home keeps the next step simple. Programs shows everything you have access to.'}
-              </Text>
             </View>
 
             {role === 'creator' ? (
@@ -194,7 +179,9 @@ export default function FeedScreen() {
                       <Text style={[styles.tabChipText, styles.tabChipTextActive]}>{tab === 'home' ? 'Home' : 'Programs'}</Text>
                     </LinearGradient>
                   ) : (
-                    <Text style={styles.tabChipText}>{tab === 'home' ? 'Home' : 'Programs'}</Text>
+                    <View style={styles.tabChipInactiveFill}>
+                      <Text style={styles.tabChipText}>{tab === 'home' ? 'Home' : 'Programs'}</Text>
+                    </View>
                   )}
                 </Pressable>
               );
@@ -241,44 +228,12 @@ export default function FeedScreen() {
                   label={role === 'creator' ? 'Programs managed' : 'Programs unlocked'}
                   tone="blue"
                 />
-                <MetricCard value={`${updates.length}`} label="Fresh updates" tone="rose" />
                 <MetricCard
                   value={role === 'creator' ? `${totalStudents}` : `${featuredProgram?.progressPercent ?? 0}%`}
                   label={role === 'creator' ? 'Students enrolled' : 'Current progress'}
                   tone="green"
                 />
               </View>
-
-              <View style={styles.sectionHeader}>
-                <View>
-                  <Text style={styles.sectionEyebrow}>General Updates</Text>
-                  <Text style={styles.sectionTitle}>Keep the feed human</Text>
-                </View>
-              </View>
-
-              {updates.length ? (
-                <View style={styles.updateList}>
-                  {updates.map((update) => (
-                    <View key={update.id} style={styles.updateCard}>
-                      <View style={styles.updateTopRow}>
-                        <Text style={styles.updateEyebrow}>{update.eyebrow}</Text>
-                        <Text style={styles.updateTime}>{update.timeLabel}</Text>
-                      </View>
-                      <Text style={styles.updateTitle}>{update.title}</Text>
-                      <Text style={styles.updateBody}>{update.body}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <View style={styles.emptyCard}>
-                  <Text style={styles.emptyTitle}>Nothing new yet</Text>
-                  <Text style={styles.emptyBody}>
-                    {role === 'creator'
-                      ? 'Program activity will show up here once you create content and start enrolling students.'
-                      : 'Once you have an active program, the feed will surface what to do next.'}
-                  </Text>
-                </View>
-              )}
             </>
           ) : (
             <>
@@ -439,7 +394,7 @@ function ContinueMomentumCard({
         <View style={styles.continueProgressMini}>
           <View style={[styles.continueProgressFillMini, { width: `${Math.max(program.progressPercent, 8)}%` }]} />
         </View>
-        <Ionicons name="arrow-forward" size={18} color={theme.colors.primaryStrong} />
+        <Ionicons name="arrow-forward" size={18} color={theme.colors.textPrimary} />
       </View>
     </Pressable>
   );
@@ -500,16 +455,12 @@ function MetricCard({
 }: {
   value: string;
   label: string;
-  tone: 'blue' | 'rose' | 'green';
+  tone: 'blue' | 'green';
 }) {
   const toneStyles = {
     blue: {
       backgroundColor: 'rgba(77, 142, 255, 0.14)',
       valueColor: theme.colors.primaryStrong
-    },
-    rose: {
-      backgroundColor: 'rgba(87, 27, 193, 0.18)',
-      valueColor: '#b794ff'
     },
     green: {
       backgroundColor: 'rgba(89, 213, 160, 0.16)',
@@ -590,17 +541,14 @@ function FeedLoadingState() {
   return (
     <View style={styles.loadingShell}>
       <View style={styles.loadingHeaderBlock}>
-        <SkeletonBlock width={108} height={12} />
         <SkeletonBlock width="52%" height={34} radius={14} style={styles.loadingHeaderTitle} />
-        <SkeletonBlock width="82%" height={16} />
       </View>
 
       <SkeletonBlock height={212} radius={30} />
 
       <View style={styles.loadingMetricRow}>
-        <SkeletonBlock style={styles.loadingMetricCard} height={96} radius={26} />
-        <SkeletonBlock style={styles.loadingMetricCard} height={96} radius={26} />
-        <SkeletonBlock style={styles.loadingMetricCard} height={96} radius={26} />
+        <SkeletonBlock style={styles.loadingMetricCard} height={72} radius={16} />
+        <SkeletonBlock style={styles.loadingMetricCard} height={72} radius={16} />
       </View>
 
       <View style={styles.loadingList}>
@@ -682,11 +630,11 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 18,
     paddingBottom: 120,
-    gap: 18
+    gap: 16
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 16
   },
@@ -694,14 +642,13 @@ const styles = StyleSheet.create({
     flex: 1
   },
   headerEyebrow: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textMuted,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.8,
     textTransform: 'uppercase'
   },
   headerTitle: {
-    marginTop: 6,
     color: theme.colors.textPrimary,
     fontSize: 34,
     lineHeight: 40,
@@ -722,8 +669,8 @@ const styles = StyleSheet.create({
   },
   programsHeroTitle: {
     color: theme.colors.textPrimary,
-    fontSize: 33,
-    lineHeight: 40,
+    fontSize: 30,
+    lineHeight: 36,
     fontWeight: '700',
     fontFamily: EDITORIAL_SERIF
   },
@@ -753,22 +700,33 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: 'row',
-    gap: 10
+    gap: 10,
+    alignItems: 'center'
   },
   tabChip: {
-    minHeight: 40,
+    minWidth: 92,
+    minHeight: 44,
     borderRadius: 999,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center'
   },
   tabChipActiveFill: {
-    minHeight: 40,
+    minWidth: 92,
+    minHeight: 44,
     paddingHorizontal: 18,
     borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  tabChipInactiveFill: {
+    minWidth: 92,
+    minHeight: 44,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -832,7 +790,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.1,
     textTransform: 'uppercase',
-    color: theme.colors.primaryStrong
+    color: theme.colors.textMuted
   },
   continueCardTitle: {
     fontSize: 18,
@@ -937,26 +895,27 @@ const styles = StyleSheet.create({
   },
   metricsRow: {
     flexDirection: 'row',
-    gap: 10
+    gap: 8
   },
   metricCard: {
     flex: 1,
-    minHeight: 92,
-    borderRadius: 20,
-    padding: 14,
+    minHeight: 72,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     justifyContent: 'space-between',
     borderWidth: 1
   },
   metricValue: {
-    fontSize: 26,
-    lineHeight: 30,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: '800',
     fontFamily: theme.typography.headline
   },
   metricLabel: {
     color: theme.colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: '700'
   },
   sectionHeader: {
@@ -1006,7 +965,7 @@ const styles = StyleSheet.create({
     gap: 10
   },
   updateEyebrow: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textMuted,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -1048,7 +1007,7 @@ const styles = StyleSheet.create({
     gap: 16
   },
   learnerProgramList: {
-    gap: 18
+    gap: 14
   },
   programCard: {
     borderRadius: 24,
@@ -1069,7 +1028,7 @@ const styles = StyleSheet.create({
     opacity: 0.94
   },
   learnerProgramCard: {
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: theme.colors.surfaceContainerHigh,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
@@ -1085,11 +1044,11 @@ const styles = StyleSheet.create({
   },
   learnerProgramImage: {
     width: '100%',
-    height: 168
+    aspectRatio: 16 / 9
   },
   learnerProgramFallback: {
     width: '100%',
-    height: 168,
+    aspectRatio: 16 / 9,
     justifyContent: 'flex-end',
     padding: 18
   },
@@ -1101,8 +1060,8 @@ const styles = StyleSheet.create({
     fontFamily: EDITORIAL_SERIF
   },
   learnerProgramCopy: {
-    padding: 16,
-    gap: 12
+    padding: 14,
+    gap: 10
   },
   learnerProgramMetaRow: {
     flexDirection: 'row',
@@ -1111,7 +1070,7 @@ const styles = StyleSheet.create({
     gap: 10
   },
   learnerProgramEyebrow: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textMuted,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.7,
@@ -1163,13 +1122,13 @@ const styles = StyleSheet.create({
     fontWeight: '800'
   },
   learnerProgramButton: {
-    minHeight: 44,
+    minHeight: 40,
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 2,
+    marginTop: 0,
     shadowColor: 'rgba(0,86,210,0.32)',
     shadowOpacity: 0.35,
     shadowRadius: 18,

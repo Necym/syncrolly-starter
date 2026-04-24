@@ -138,7 +138,7 @@ export default function ProfileSettingsScreen() {
   if (!isConfigured || !supabase) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Profile settings</Text>
           <Text style={styles.emptyBody}>Add your Supabase keys in `apps/mobile/.env` to load account settings.</Text>
@@ -150,7 +150,7 @@ export default function ProfileSettingsScreen() {
   if (sessionLoading || loadingScreen) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.emptyState}>
           <ActivityIndicator size="small" color={theme.colors.primaryStrong} />
           <Text style={styles.emptyBody}>Loading profile settings...</Text>
@@ -162,7 +162,7 @@ export default function ProfileSettingsScreen() {
   if (!user) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Profile settings</Text>
           <Text style={styles.emptyBody}>Sign in to Syncrolly first.</Text>
@@ -173,12 +173,12 @@ export default function ProfileSettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
       <View style={styles.screen}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.iconButton}>
-            <Ionicons name="arrow-back" size={20} color={theme.colors.primaryStrong} />
+            <Ionicons name="arrow-back" size={20} color={theme.colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Profile Settings</Text>
           <View style={styles.headerSpacer} />
@@ -265,11 +265,11 @@ export default function ProfileSettingsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f7f8fb'
+    backgroundColor: theme.colors.background
   },
   screen: {
     flex: 1,
-    backgroundColor: '#f7f8fb'
+    backgroundColor: theme.colors.background
   },
   header: {
     minHeight: 62,
@@ -282,12 +282,14 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 999,
-    backgroundColor: theme.colors.surfaceContainerLowest,
+    backgroundColor: theme.colors.surfaceContainerHighest,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center'
   },
   headerTitle: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 22,
     fontWeight: '800',
     fontFamily: theme.typography.headline
@@ -306,9 +308,19 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
     padding: 18,
-    gap: 14
+    gap: 14,
+    shadowColor: '#050910',
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: {
+      width: 0,
+      height: 10
+    },
+    elevation: 3
   },
   cardEyebrow: {
     color: theme.colors.primaryStrong,
@@ -331,7 +343,9 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 46,
     borderRadius: 12,
-    backgroundColor: '#f0f1fb',
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    backgroundColor: theme.colors.surfaceContainerHighest,
     paddingHorizontal: 12,
     color: theme.colors.textPrimary,
     fontSize: 15
@@ -352,12 +366,15 @@ const styles = StyleSheet.create({
     minHeight: 36,
     paddingHorizontal: 14,
     borderRadius: theme.radii.pill,
-    backgroundColor: '#f5f6fb',
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    backgroundColor: theme.colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center'
   },
   chipActive: {
-    backgroundColor: theme.colors.primarySoft
+    backgroundColor: theme.colors.primarySoft,
+    borderColor: 'rgba(77, 142, 255, 0.34)'
   },
   chipText: {
     color: theme.colors.textSecondary,
@@ -365,7 +382,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   chipTextActive: {
-    color: theme.colors.primaryStrong
+    color: theme.colors.textPrimary
   },
   helperText: {
     color: theme.colors.textSecondary,
@@ -373,7 +390,7 @@ const styles = StyleSheet.create({
     lineHeight: 20
   },
   feedbackText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textSecondary,
     fontSize: 13,
     lineHeight: 20
   },

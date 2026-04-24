@@ -836,9 +836,9 @@ export default function ThreadScreen() {
                             <View style={styles.specialCardTopGlow} />
                             <View style={styles.inquiryCard}>
                               <View style={styles.inquiryCardHeader}>
-                                <View style={styles.inquiryCardBadge}>
-                                  <Ionicons name="document-text-outline" size={12} color={DM_COLORS.icon} />
-                                  <Text style={styles.inquiryCardBadgeText}>Form intake</Text>
+                                <View style={[styles.inquiryCardBadge, styles.inquiryCardBadgeOutgoing]}>
+                                  <Ionicons name="document-text-outline" size={12} color="#f7faff" />
+                                  <Text style={[styles.inquiryCardBadgeText, styles.inquiryCardBadgeTextOutgoing]}>Form intake</Text>
                                 </View>
                                 <Text style={styles.inquiryCardMeta}>
                                   {formatSubmissionCardTime(message.inquirySubmissionCard.submittedAt)}
@@ -915,9 +915,9 @@ export default function ThreadScreen() {
                             <View style={styles.specialCardTopGlow} />
                             <View style={styles.callInvitationCard}>
                               <View style={styles.callInvitationHeader}>
-                                <View style={styles.callInvitationBadge}>
-                                  <Ionicons name="calendar-outline" size={12} color={DM_COLORS.icon} />
-                                  <Text style={styles.callInvitationBadgeText}>Call invite</Text>
+                                <View style={[styles.callInvitationBadge, styles.callInvitationBadgeOutgoing]}>
+                                  <Ionicons name="calendar-outline" size={12} color="#f7faff" />
+                                  <Text style={[styles.callInvitationBadgeText, styles.callInvitationBadgeTextOutgoing]}>Call invite</Text>
                                 </View>
 
                                 <View
@@ -1618,12 +1618,20 @@ const styles = StyleSheet.create({
     backgroundColor: DM_COLORS.accentSoft,
     justifyContent: 'center'
   },
+  inquiryCardBadgeOutgoing: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)'
+  },
   inquiryCardBadgeText: {
     color: theme.colors.primaryStrong,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.65,
     textTransform: 'uppercase'
+  },
+  inquiryCardBadgeTextOutgoing: {
+    color: '#f7faff'
   },
   inquiryCardMeta: {
     color: '#98a3bc',
@@ -1692,12 +1700,20 @@ const styles = StyleSheet.create({
     backgroundColor: DM_COLORS.accentSoft,
     justifyContent: 'center'
   },
+  callInvitationBadgeOutgoing: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)'
+  },
   callInvitationBadgeText: {
     color: theme.colors.primaryStrong,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.6,
     textTransform: 'uppercase'
+  },
+  callInvitationBadgeTextOutgoing: {
+    color: '#f7faff'
   },
   callInvitationStatusPill: {
     minHeight: 22,

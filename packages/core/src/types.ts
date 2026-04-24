@@ -5,7 +5,7 @@ export type UserPresence = 'online' | 'away' | 'offline';
 export type InboxThreadFilter = 'all' | 'vip' | 'paid' | 'requests';
 export type DmIntakePolicy = 'direct_message' | 'form' | 'paid_fee';
 export type CreatorProfilePageBlockType = 'video' | 'offers' | 'cta' | 'media_posts';
-export type CreatorProfileCtaActionType = 'form' | 'booking' | 'external_url';
+export type CreatorProfileCtaActionType = 'direct_message' | 'form' | 'booking' | 'external_url';
 export type CreatorProfileOfferIcon =
   | 'call-outline'
   | 'desktop-outline'
@@ -359,6 +359,7 @@ export interface InstagramLeadDetail extends InstagramLeadSummary {
 export interface ProgramLesson {
   id: string;
   programId: string;
+  moduleId: string;
   title: string;
   summary: string;
   videoUrl?: string;
@@ -371,6 +372,20 @@ export interface ProgramLesson {
   updatedAt: string;
 }
 
+export interface ProgramModule {
+  id: string;
+  programId: string;
+  title: string;
+  summary: string;
+  position: number;
+  lessonCount: number;
+  completedLessons: number;
+  progressPercent: number;
+  lessons: ProgramLesson[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProgramSummary {
   id: string;
   creatorId: string;
@@ -379,6 +394,7 @@ export interface ProgramSummary {
   subtitle: string;
   description: string;
   thumbnailUrl?: string;
+  moduleCount: number;
   lessonCount: number;
   enrolledCount: number;
   completedLessons: number;
@@ -402,6 +418,7 @@ export interface ProgramLearner {
 }
 
 export interface ProgramDetail extends ProgramSummary {
+  modules: ProgramModule[];
   lessons: ProgramLesson[];
   learners: ProgramLearner[];
 }
@@ -425,10 +442,23 @@ export interface UpdateProgramInput {
 
 export interface CreateProgramLessonInput {
   programId: string;
+  moduleId?: string;
   title: string;
   summary?: string;
   videoUrl?: string;
   durationLabel?: string;
+}
+
+export interface CreateProgramModuleInput {
+  programId: string;
+  title: string;
+  summary?: string;
+}
+
+export interface UpdateProgramModuleInput {
+  moduleId: string;
+  title: string;
+  summary?: string;
 }
 
 export interface EnrollStudentInProgramInput {

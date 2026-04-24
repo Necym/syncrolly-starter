@@ -42,6 +42,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AmbientBackground from '../../components/AmbientBackground';
 import { getDefaultDisplayName, getPreferredRole, useMobileSession } from '../../lib/session';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -1061,8 +1062,9 @@ export default function InboxScreen() {
   if (!isConfigured || !supabase) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.screen}>
+          <AmbientBackground />
           {renderHeader()}
           <View style={styles.centerStage}>
             <Text style={styles.stageTitle}>Supabase isn&apos;t configured yet</Text>
@@ -1078,8 +1080,9 @@ export default function InboxScreen() {
   if (sessionLoading || loadingView) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.screen}>
+          <AmbientBackground />
           {renderHeader()}
           <View style={styles.centerStage}>
             <ActivityIndicator size="small" color={theme.colors.primaryStrong} />
@@ -1093,8 +1096,9 @@ export default function InboxScreen() {
   if (!user) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.screen}>
+          <AmbientBackground />
           {renderHeader()}
           <ScrollView
             style={styles.scrollView}
@@ -1192,8 +1196,9 @@ export default function InboxScreen() {
   if (!hasCompletedProfile(viewerProfile)) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <View style={styles.screen}>
+          <AmbientBackground />
           {renderHeader()}
           <ScrollView
             style={styles.scrollView}
@@ -1299,8 +1304,9 @@ export default function InboxScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <View style={styles.screen}>
+        <AmbientBackground />
         {renderHeader()}
 
         <ScrollView
@@ -1884,7 +1890,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primarySoft
   },
   threadSectionCountText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 12,
     fontWeight: '800'
   },
@@ -1976,7 +1982,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primarySoft
   },
   threadStatusBadgeText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.45,
@@ -2136,7 +2142,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7
   },
   instagramConnectedBadgeText: {
-    color: theme.colors.primaryStrong,
+    color: theme.colors.textPrimary,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'capitalize'
@@ -2242,7 +2248,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.accentSoft
   },
   instagramLeadStatusBadgeText: {
-    color: theme.colors.accent,
+    color: theme.colors.textPrimary,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.45,
@@ -2269,7 +2275,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   instagramLeadUnreadBadgeText: {
-    color: theme.colors.accent,
+    color: theme.colors.textPrimary,
     fontSize: 11,
     fontWeight: '800'
   },
