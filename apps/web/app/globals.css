@@ -5565,18 +5565,28 @@ body.syncrolly-body {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 30px clamp(32px, 6vw, 104px) 22px;
+  padding: 22px 18px 18px 24px;
   overscroll-behavior: contain;
+  scrollbar-color: rgba(77, 142, 255, 0.48) rgba(10, 19, 35, 0.64);
+  scrollbar-width: thin;
 }
 
 .desktop-message-stack {
-  width: min(860px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   gap: 18px;
 }
 
 .message-row {
-  max-width: min(72%, 620px);
+  max-width: min(54%, 620px);
+}
+
+.message-row.incoming {
+  justify-self: start;
+}
+
+.message-row.outgoing {
+  justify-self: end;
 }
 
 .message-bubble {
@@ -5594,14 +5604,45 @@ body.syncrolly-body {
 }
 
 .desktop-thread-composer {
-  width: min(860px, calc(100% - 48px));
+  width: calc(100% - 42px);
   align-self: end;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 10px;
-  margin: 0 auto 18px;
+  margin: 0 18px 18px 24px;
   border-radius: 12px;
+}
+
+.desktop-message-scroll::-webkit-scrollbar,
+.desktop-thread-list::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.desktop-message-scroll::-webkit-scrollbar-track,
+.desktop-thread-list::-webkit-scrollbar-track {
+  background: rgba(10, 19, 35, 0.72);
+}
+
+.desktop-message-scroll::-webkit-scrollbar-thumb,
+.desktop-thread-list::-webkit-scrollbar-thumb {
+  min-height: 54px;
+  border: 3px solid rgba(10, 19, 35, 0.72);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(77, 142, 255, 0.84), rgba(104, 78, 224, 0.78));
+}
+
+.desktop-message-scroll::-webkit-scrollbar-thumb:hover,
+.desktop-thread-list::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(121, 171, 255, 0.95), rgba(125, 93, 236, 0.9));
+}
+
+.desktop-message-scroll::-webkit-scrollbar-button,
+.desktop-thread-list::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .thread-input {
@@ -5643,12 +5684,14 @@ body.syncrolly-body {
   }
 
   .desktop-message-scroll {
-    padding-left: 28px;
-    padding-right: 28px;
+    padding-left: 20px;
+    padding-right: 14px;
   }
 
   .desktop-thread-composer {
-    width: calc(100% - 36px);
+    width: calc(100% - 34px);
+    margin-left: 20px;
+    margin-right: 14px;
   }
 }
 
