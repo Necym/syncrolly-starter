@@ -1145,28 +1145,53 @@ function HomePageContent() {
     );
   }
 
+  function renderSyncrollyWordmark() {
+    return (
+      <span className="desktop-app-brand-content">
+        <span className="welcome-brand-mark" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+        <span>Syncrolly</span>
+      </span>
+    );
+  }
+
   function renderHeader(wide = false) {
+    const navItems = [
+      { label: 'Messages', active: true, onClick: () => router.push('/') },
+      { label: 'Feed', active: false, onClick: () => router.push('/') },
+      {
+        label: 'Profile',
+        active: false,
+        onClick: () => router.push(viewerProfile?.id ? `/profile/${viewerProfile.id}` : '/settings/profile')
+      },
+      { label: 'Settings', active: false, onClick: () => router.push('/settings') },
+      { label: 'Calendar', active: false, onClick: () => router.push('/') }
+    ];
+
     return (
       <header className="shell-header">
         <div className={`shell-header-inner${wide ? ' shell-header-inner-wide' : ''}`}>
-          <div className="brand brand-wordmark">
-            <BrandMark />
-          </div>
+          <button type="button" className="desktop-app-brand" onClick={() => router.push('/')} aria-label="Syncrolly home">
+            {renderSyncrollyWordmark()}
+          </button>
 
           {wide ? (
             <nav className="desktop-header-nav" aria-label="Primary">
-              <a className="desktop-header-link" href="#">
-                Dashboard
-              </a>
-              <a className="desktop-header-link active" href="#">
-                Messages
-              </a>
-              <a className="desktop-header-link" href="#">
-                Analytics
-              </a>
-              <a className="desktop-header-link" href="#">
-                Schedule
-              </a>
+              {navItems.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  className={`desktop-header-link${item.active ? ' active' : ''}`}
+                  onClick={item.onClick}
+                >
+                  {item.label}
+                </button>
+              ))}
             </nav>
           ) : null}
 
@@ -1625,24 +1650,47 @@ function HomePageContent() {
       : selectedConversation.status === 'request'
         ? 'Send your request...'
         : 'Write a message...';
+    const conversationAvatar = selectedParticipantProfile?.avatarUrl ?? selectedConversation.participantAvatar;
+    const conversationRole =
+      selectedParticipantProfile?.role === 'creator'
+        ? selectedParticipantProfile.creatorProfile?.headline || selectedParticipantProfile.creatorProfile?.niche || 'Creator'
+        : selectedParticipantProfile?.role === 'supporter'
+          ? 'Supporter'
+          : 'Direct thread';
 
     return (
       <section className="desktop-message-panel">
         <header className="desktop-conversation-header">
-          <div className="desktop-conversation-title-group">
-            <h2 className="desktop-conversation-title">{selectedConversation.participantName}</h2>
-            <span className="desktop-conversation-pill">
-              {selectedConversation.status === 'request'
-                ? selectedConversation.statusLabel
-                : selectedParticipantProfile?.role === 'creator'
-                  ? 'Creator'
-                  : 'Direct thread'}
-            </span>
+          <div className="desktop-conversation-identity">
+            <div className="desktop-conversation-avatar-frame">
+              {conversationAvatar ? (
+                <img src={conversationAvatar} alt={selectedConversation.participantName} className="desktop-conversation-avatar" />
+              ) : (
+                <span>{getInitials(selectedConversation.participantName)}</span>
+              )}
+            </div>
+
+            <div className="desktop-conversation-title-group">
+              <div className="desktop-conversation-name-row">
+                <h2 className="desktop-conversation-title">{selectedConversation.participantName}</h2>
+                <span className="desktop-conversation-pill">
+                  {selectedConversation.status === 'request' ? selectedConversation.statusLabel : conversationRole}
+                </span>
+              </div>
+              <span className="desktop-conversation-subtitle">
+                {selectedParticipantProfile?.role === 'creator'
+                  ? selectedParticipantProfile.creatorProfile?.niche || 'Creator workspace'
+                  : 'Syncrolly conversation'}
+              </span>
+            </div>
           </div>
 
           <div className="desktop-conversation-actions">
             <button type="button" className="icon-button subtle" aria-label="Start video call">
               <Icon name="camera" />
+            </button>
+            <button type="button" className="icon-button subtle" aria-label="Search conversation">
+              <Icon name="search" />
             </button>
             <button type="button" className="icon-button subtle" aria-label="Conversation options">
               <Icon name="more" />
@@ -1705,12 +1753,15 @@ function HomePageContent() {
         </div>
 
         <div className="desktop-thread-composer">
-          <button type="button" className="media-button" aria-label="Attach camera content">
-            <Icon name="camera" />
-          </button>
-          <button type="button" className="media-button" aria-label="Attach image">
-            <Icon name="image" />
-          </button>
+          <div className="desktop-composer-toolbar" aria-hidden="true">
+            <span>B</span>
+            <span>I</span>
+            <span>S</span>
+            <span>&lt;&gt;</span>
+            <i />
+            <span>*</span>
+            <span>1.</span>
+          </div>
 
           <input
             className={`thread-input${!selectedConversation.canSendMessage ? ' disabled' : ''}`}
@@ -1730,15 +1781,29 @@ function HomePageContent() {
             placeholder={composerPlaceholder}
           />
 
-          <button
-            type="button"
-            className={`send-button${!draft.trim() || sending || !selectedConversation.canSendMessage ? ' disabled' : ''}`}
-            onClick={() => void handleSend()}
-            disabled={!draft.trim() || sending || !selectedConversation.canSendMessage}
-            aria-label="Send message"
-          >
-            {sending ? <span className="button-spinner" aria-hidden="true" /> : <Icon name="send" />}
-          </button>
+          <div className="desktop-composer-action-row">
+            <div className="desktop-composer-attachments">
+              <button type="button" className="media-button" aria-label="Attach camera content">
+                <Icon name="camera" />
+              </button>
+              <button type="button" className="media-button" aria-label="Attach image">
+                <Icon name="image" />
+              </button>
+            </div>
+
+            <div className="desktop-composer-send-row">
+              <span>Return to send</span>
+              <button
+                type="button"
+                className={`send-button${!draft.trim() || sending || !selectedConversation.canSendMessage ? ' disabled' : ''}`}
+                onClick={() => void handleSend()}
+                disabled={!draft.trim() || sending || !selectedConversation.canSendMessage}
+                aria-label="Send message"
+              >
+                {sending ? <span className="button-spinner" aria-hidden="true" /> : <><span>Send</span><Icon name="send" /></>}
+              </button>
+            </div>
+          </div>
         </div>
       </section>
     );
@@ -2287,27 +2352,8 @@ function HomePageContent() {
         <section className="desktop-inbox-shell">
           <aside className="desktop-inbox-sidebar">
             <div className="desktop-sidebar-header">
-              <div className="desktop-sidebar-top-row">
-                <label className="search-field desktop-search-field">
-                  <Icon name="search" />
-                  <input
-                    type="search"
-                    value={searchValue}
-                    onChange={(event) => setSearchValue(event.target.value)}
-                    placeholder={
-                      inboxTab === 'forms'
-                        ? 'Search forms...'
-                        : inboxTab === 'instagram'
-                          ? 'Search Instagram leads...'
-                        : inboxTab === 'unread'
-                          ? 'Search unread...'
-                          : inboxTab === 'other'
-                            ? 'Search other...'
-                            : 'Search conversations...'
-                    }
-                  />
-                </label>
-
+              <div className="desktop-sidebar-title-row">
+                <h1>Messages</h1>
                 <button
                   type="button"
                   className="desktop-compose-icon-button"
@@ -2318,21 +2364,32 @@ function HomePageContent() {
                 </button>
               </div>
 
+              <label className="search-field desktop-search-field">
+                <Icon name="search" />
+                <input
+                  type="search"
+                  value={searchValue}
+                  onChange={(event) => setSearchValue(event.target.value)}
+                  placeholder={
+                    inboxTab === 'forms'
+                      ? 'Search forms...'
+                      : inboxTab === 'instagram'
+                        ? 'Search Instagram leads...'
+                      : inboxTab === 'unread'
+                        ? 'Search unread...'
+                        : inboxTab === 'other'
+                          ? 'Search other...'
+                          : 'Search direct messages...'
+                  }
+                />
+              </label>
+
               <div className="desktop-tab-row" role="tablist" aria-label="Inbox tabs">
                 {([
                   { key: 'all' as const, label: 'All' },
-                  {
-                    key: 'unread' as const,
-                    label: unreadAcceptedThreads.length ? `Unread (${unreadAcceptedThreads.length})` : 'Unread'
-                  },
-                  {
-                    key: 'forms' as const,
-                    label: pendingFormSubmissions.length ? `Forms (${pendingFormSubmissions.length})` : 'Forms'
-                  },
-                  {
-                    key: 'instagram' as const,
-                    label: instagramLeads.length ? `Instagram (${instagramLeads.length})` : 'Instagram'
-                  },
+                  { key: 'unread' as const, label: 'Unread' },
+                  { key: 'forms' as const, label: 'Forms' },
+                  { key: 'instagram' as const, label: 'Instagram' },
                   { key: 'other' as const, label: 'Other' }
                 ]).map((item) => {
                   const isActive = inboxTab === item.key;
