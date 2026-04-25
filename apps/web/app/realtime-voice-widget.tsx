@@ -532,6 +532,10 @@ export function RealtimeVoiceWidget() {
     });
   }
 
+  if (!user) {
+    return null;
+  }
+
   return (
     <div className={`realtime-widget${expanded ? ' expanded' : ''}`}>
       <button
