@@ -1033,25 +1033,6 @@ export default function ProgramStudioEditorScreen() {
   const draftLessonCount = resolvedLessons.length - readyLessonCount;
   const videoLessonCount = resolvedLessons.filter((lesson) => getLessonAssetKind(lesson.videoUrl) === 'video').length;
   const documentLessonCount = resolvedLessons.filter((lesson) => getLessonAssetKind(lesson.videoUrl) === 'document').length;
-  const readinessChecks = [
-    {
-      label: 'Title',
-      complete: Boolean(programTitle.trim())
-    },
-    {
-      label: 'Description',
-      complete: Boolean(programDescription.trim())
-    },
-    {
-      label: 'Thumbnail',
-      complete: Boolean(thumbnailPreviewUri)
-    },
-    {
-      label: 'Lessons',
-      complete: readyLessonCount > 0
-    }
-  ];
-  const readyToPublish = readinessChecks.every((check) => check.complete);
   const tabItems: Array<{ key: StudioTab; label: string; requiresSavedProgram?: boolean }> = [
     { key: 'description', label: 'Description' },
     { key: 'structure', label: 'Structure', requiresSavedProgram: true },
@@ -1125,42 +1106,6 @@ export default function ProgramStudioEditorScreen() {
 
           {activeTab === 'description' ? (
             <>
-              <View style={[styles.card, styles.compactCard]}>
-                <View style={styles.cardHeader}>
-                  <View>
-                    <Text style={styles.sectionEyebrow}>Publishing</Text>
-                    <Text style={styles.cardTitle}>Readiness</Text>
-                  </View>
-
-                  <View style={[styles.readinessBadge, readyToPublish ? styles.readinessBadgeReady : styles.readinessBadgeDraft]}>
-                    <Text style={[styles.readinessBadgeText, readyToPublish ? styles.readinessBadgeTextReady : null]}>
-                      {readyToPublish ? 'Ready' : 'Draft'}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.readinessChecklist}>
-                  {readinessChecks.map((check) => (
-                    <View key={check.label} style={[styles.readinessChip, check.complete && styles.readinessChipComplete]}>
-                      <Ionicons
-                        name={check.complete ? 'checkmark-circle' : 'ellipse-outline'}
-                        size={14}
-                        color={check.complete ? theme.colors.primaryStrong : '#98a2b3'}
-                      />
-                      <Text style={[styles.readinessChipText, check.complete && styles.readinessChipTextComplete]}>
-                        {check.label}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
-                <Text style={styles.readinessCaption}>
-                  {readyToPublish
-                    ? 'This program is ready to share with learners.'
-                    : 'Finish the basics here, then move into structure and learners.'}
-                </Text>
-              </View>
-
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
                   <View>
@@ -2044,63 +1989,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: 14,
     lineHeight: 22
-  },
-  readinessBadge: {
-    minHeight: 32,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surfaceContainerHigh
-  },
-  readinessBadgeReady: {
-    backgroundColor: 'rgba(89, 213, 160, 0.16)'
-  },
-  readinessBadgeDraft: {
-    backgroundColor: 'rgba(245, 193, 108, 0.14)'
-  },
-  readinessBadgeText: {
-    color: theme.colors.warning,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.7,
-    textTransform: 'uppercase'
-  },
-  readinessBadgeTextReady: {
-    color: theme.colors.success
-  },
-  readinessChecklist: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8
-  },
-  readinessChip: {
-    minHeight: 32,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: theme.colors.outlineSoft,
-    backgroundColor: theme.colors.surfaceContainerHigh,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6
-  },
-  readinessChipComplete: {
-    backgroundColor: theme.colors.primarySoft,
-    borderColor: 'rgba(77, 142, 255, 0.34)'
-  },
-  readinessChipText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700'
-  },
-  readinessChipTextComplete: {
-    color: theme.colors.textPrimary
-  },
-  readinessCaption: {
-    color: theme.colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 19
   },
   thumbnailFrame: {
     height: 188,

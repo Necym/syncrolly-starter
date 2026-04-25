@@ -135,22 +135,6 @@ function getInitials(name: string): string {
     .join('');
 }
 
-function getCtaLabelPresets(actionType: CreatorProfileCtaActionType) {
-  if (actionType === 'direct_message') {
-    return ['Message me', 'DM me', 'Start chat'];
-  }
-
-  if (actionType === 'form') {
-    return ['Apply now', 'Start intake', 'Send inquiry'];
-  }
-
-  if (actionType === 'booking') {
-    return ['Book a call', 'Reserve a spot', 'Schedule now'];
-  }
-
-  return ['Open details', 'Visit site', 'View offer'];
-}
-
 function isMissingProgramMediaBucketError(error: unknown) {
   const message = getErrorMessage(error).toLowerCase();
   return message.includes('bucket not found') || message.includes('program-media');
@@ -1653,27 +1637,11 @@ export default function ProfileScreen() {
                                     ? 'Form'
                                     : value === 'booking'
                                       ? 'Book a call'
-                                      : 'External link'}
+                                      : 'Link'}
                               </Text>
                             </Pressable>
                           );
                         })}
-                      </View>
-
-                      <View style={styles.builderPresetRow}>
-                        {getCtaLabelPresets(block.actionType).map((value) => (
-                          <Pressable
-                            key={value}
-                            style={styles.builderPresetChip}
-                            onPress={() =>
-                              updatePageBlock(block.id, (current) =>
-                                current.type === 'cta' ? { ...current, buttonLabel: value } : current
-                              )
-                            }
-                          >
-                            <Text style={styles.builderPresetChipText}>{value}</Text>
-                          </Pressable>
-                        ))}
                       </View>
 
                       {block.actionType === 'external_url' ? (
@@ -2786,26 +2754,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: 12,
     lineHeight: 18
-  },
-  builderPresetRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8
-  },
-  builderPresetChip: {
-    minHeight: 32,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: theme.colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  builderPresetChipText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700'
   },
   iconPickerBackdrop: {
     flex: 1,
