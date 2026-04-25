@@ -118,7 +118,7 @@ export default function ProgramStudioPage() {
         <div className="program-studio-empty">
           <p>Program Studio</p>
           <h1>Connect Supabase to build programs.</h1>
-          <span>Add your web Supabase keys, then this screen will create real programs using the shared app data layer.</span>
+          <span>Add your web Supabase keys, then this screen will create real programs.</span>
         </div>
       </main>
     );
@@ -145,38 +145,70 @@ export default function ProgramStudioPage() {
   }
 
   const isCreator = role === 'creator';
+  const displayInitial = user.email?.charAt(0).toUpperCase() ?? 'S';
+  const navItems = [
+    { label: 'Messages', active: false, onClick: () => router.push('/') },
+    { label: 'Feed', active: false, onClick: () => router.push('/') },
+    { label: 'Profile', active: false, onClick: () => router.push('/settings/profile') },
+    { label: 'Settings', active: false, onClick: () => router.push('/settings') },
+    { label: 'Calendar', active: false, onClick: () => router.push('/') }
+  ];
 
   return (
     <main className="program-studio-page">
       <div className="program-studio-orb program-studio-orb-one" />
       <div className="program-studio-orb program-studio-orb-two" />
 
-      <header className="program-studio-topbar">
-        <button type="button" className="program-studio-back" onClick={() => router.push('/settings')}>
-          <Icon name="back" />
-          <span>Settings</span>
-        </button>
-        <div className="program-studio-topbar-actions">
-          <button type="button" className="program-studio-ghost-button" onClick={() => router.push('/')}>
-            Messages
+      <header className="shell-header program-studio-shell-header">
+        <div className="shell-header-inner shell-header-inner-wide">
+          <button type="button" className="desktop-app-brand" onClick={() => router.push('/')} aria-label="Synced-In home">
+            <span className="desktop-app-brand-content">
+              <img src="/synced-in-logo.png" alt="" className="welcome-brand-logo" aria-hidden="true" />
+              <span>Synced-In</span>
+            </span>
           </button>
-          {isCreator ? (
-            <button type="button" className="program-studio-primary-button" onClick={handleCreateProgram} disabled={creatingProgram}>
-              <Icon name="compose" />
-              <span>{creatingProgram ? 'Creating' : 'New program'}</span>
+
+          <nav className="desktop-header-nav" aria-label="Primary">
+            {navItems.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                className={`desktop-header-link${item.active ? ' active' : ''}`}
+                onClick={item.onClick}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="shell-header-actions">
+            <div className="desktop-header-utility">
+              <button className="desktop-header-icon-button" type="button" aria-label="Notifications">
+                <Icon name="notifications" />
+              </button>
+            </div>
+            <button
+              type="button"
+              className="desktop-header-profile-button"
+              aria-label="Open account settings"
+              onClick={() => router.push('/settings')}
+            >
+              <div className="desktop-header-avatar-frame">
+                <span className="desktop-header-avatar-text">{displayInitial}</span>
+              </div>
             </button>
-          ) : null}
+          </div>
         </div>
       </header>
 
       <section className="program-studio-hero">
         <div>
           <p>{isCreator ? 'Program studio' : 'Learning library'}</p>
-          <h1>{isCreator ? 'Turn your expertise into a structured product.' : 'Continue the programs you joined.'}</h1>
+          <h1>{isCreator ? 'Build programs your audience can finish.' : 'Continue your programs.'}</h1>
           <span>
             {isCreator
-              ? 'Build lessons, enroll supporters, and keep your education products beside messages, forms, and profile tools.'
-              : 'Your creator-led programs, modules, and lesson progress stay synced with the mobile app.'}
+              ? 'Create polished learning paths with modules, lessons, thumbnails, and learner progress in one place.'
+              : 'Jump back into the lessons and resources your creators have shared with you.'}
           </span>
         </div>
 
@@ -189,11 +221,19 @@ export default function ProgramStudioPage() {
 
       {feedback ? <div className={`program-studio-notice ${feedback.tone}`}>{feedback.message}</div> : null}
 
-      <section className="program-studio-layout">
+      <section className="program-studio-layout clean">
         <div className="program-studio-main">
           <div className="program-studio-section-heading">
-            <span>{isCreator ? 'Your programs' : 'Available programs'}</span>
-            <p>{isCreator ? 'Open a program to edit structure and review learners.' : 'Pick up from the next unfinished lesson.'}</p>
+            <div>
+              <span>{isCreator ? 'Your programs' : 'Available programs'}</span>
+              <p>{isCreator ? 'Open a program to refine details, modules, lessons, and learners.' : 'Pick up from your next unfinished lesson.'}</p>
+            </div>
+            {isCreator ? (
+              <button type="button" className="program-studio-primary-button" onClick={handleCreateProgram} disabled={creatingProgram}>
+                <Icon name="compose" />
+                <span>{creatingProgram ? 'Creating' : 'New program'}</span>
+              </button>
+            ) : null}
           </div>
 
           {loadingPrograms ? (
@@ -221,19 +261,6 @@ export default function ProgramStudioPage() {
             </div>
           )}
         </div>
-
-        <aside className="program-studio-rail">
-          <div className="program-studio-rail-block">
-            <p>Parity focus</p>
-            <strong>Mobile data, web-native canvas.</strong>
-            <span>This screen reads and writes the same program tables as the app while using the dark Synced-In visual system.</span>
-          </div>
-          <div className="program-studio-rail-list">
-            <span>Structure modules</span>
-            <span>Add lessons</span>
-            <span>Track learner progress</span>
-          </div>
-        </aside>
       </section>
     </main>
   );

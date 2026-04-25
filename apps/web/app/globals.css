@@ -6798,7 +6798,7 @@ body.syncrolly-body {
   }
 }
 
-/* Program parity: web uses the same dark creator/product language as mobile, scaled for desktop. */
+/* Program studio and builder: dark creator product workspace. */
 .program-studio-page,
 .program-detail-page {
   position: relative;
@@ -7692,6 +7692,106 @@ body.syncrolly-body {
   .program-detail-complete-button {
     grid-column: 2;
     justify-self: start;
+  }
+}
+
+.program-studio-page {
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-top: 112px;
+}
+
+.program-studio-shell-header {
+  background: rgba(11, 19, 38, 0.92);
+}
+
+.program-studio-page .program-studio-hero,
+.program-studio-page .program-studio-layout,
+.program-studio-page .program-studio-notice {
+  width: min(1280px, 100%);
+}
+
+.program-studio-page .program-studio-hero {
+  grid-template-columns: minmax(0, 0.72fr) minmax(320px, 0.32fr);
+  align-items: end;
+  gap: clamp(30px, 5vw, 86px);
+  margin-bottom: 46px;
+}
+
+.program-studio-page .program-studio-hero h1 {
+  max-width: 760px;
+  font-size: clamp(3rem, 5.8vw, 5.65rem);
+  letter-spacing: -0.07em;
+  line-height: 0.9;
+}
+
+.program-studio-page .program-studio-hero > div:first-child > span {
+  max-width: 650px;
+  margin-top: 18px;
+  font-size: clamp(1rem, 1.25vw, 1.12rem);
+}
+
+.program-studio-page .program-studio-metrics {
+  align-self: end;
+}
+
+.program-studio-page .program-studio-layout.clean {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.program-studio-page .program-studio-section-heading {
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.program-studio-page .program-studio-section-heading > div {
+  display: grid;
+  gap: 7px;
+}
+
+.program-studio-page .program-studio-section-heading p {
+  max-width: none;
+}
+
+.program-studio-page .program-studio-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 420px));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.program-studio-page .program-studio-card {
+  min-height: 390px;
+}
+
+.program-studio-page .program-studio-rail {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .program-studio-page .program-studio-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .program-studio-page .program-studio-metrics {
+    max-width: 520px;
+  }
+}
+
+@media (max-width: 760px) {
+  .program-studio-page {
+    padding-top: 96px;
+  }
+
+  .program-studio-page .program-studio-hero h1 {
+    font-size: clamp(2.4rem, 12vw, 3.8rem);
+  }
+
+  .program-studio-page .program-studio-section-heading {
+    align-items: stretch;
+  }
+
+  .program-studio-page .program-studio-section-heading .program-studio-primary-button {
+    width: 100%;
   }
 }
 
