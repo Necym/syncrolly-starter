@@ -34,7 +34,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, type ReactNode } from 'react';
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { getDefaultDisplayName, getPreferredRole, useWebSession } from '../lib/session';
-import { BottomNav, BrandMark, Icon, getErrorMessage } from './ui';
+import { BottomNav, Icon, getErrorMessage } from './ui';
 
 type AuthMode = 'sign-in' | 'sign-up';
 type DmAccess = 'free' | 'subscriber_only' | 'paid_only';
@@ -1201,19 +1201,6 @@ function HomePageContent() {
                 <button className="desktop-header-icon-button" type="button" aria-label="Notifications">
                   <Icon name="notifications" />
                 </button>
-
-                <button
-                  className="desktop-header-icon-button"
-                  type="button"
-                  aria-label="Settings"
-                  onClick={() => {
-                    if (user) {
-                      router.push('/settings');
-                    }
-                  }}
-                >
-                  <Icon name="settings" />
-                </button>
               </div>
             ) : null}
 
@@ -1753,16 +1740,6 @@ function HomePageContent() {
         </div>
 
         <div className="desktop-thread-composer">
-          <div className="desktop-composer-toolbar" aria-hidden="true">
-            <span>B</span>
-            <span>I</span>
-            <span>S</span>
-            <span>&lt;&gt;</span>
-            <i />
-            <span>*</span>
-            <span>1.</span>
-          </div>
-
           <input
             className={`thread-input${!selectedConversation.canSendMessage ? ' disabled' : ''}`}
             type="text"
@@ -2418,7 +2395,6 @@ function HomePageContent() {
           </aside>
 
           {renderConversationPanel()}
-          {renderProfileSidebar()}
         </section>
       </main>
 

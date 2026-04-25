@@ -1484,10 +1484,16 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: #f2f6ff;
   font-size: 1.38rem;
   font-weight: 900;
   letter-spacing: -0.05em;
+}
+
+.desktop-app-brand-content > span:last-child {
+  background: linear-gradient(90deg, #4d8eff, #7d4dff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .desktop-header-link {
@@ -4896,7 +4902,12 @@ body.syncrolly-body {
 
 .shell-header-inner-wide {
   width: min(1440px, 100%);
+  height: 80px;
   padding: 0 28px;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+  align-items: center;
+  gap: 24px;
 }
 
 .desktop-app-brand .welcome-brand-mark {
@@ -4952,21 +4963,26 @@ body.syncrolly-body {
   padding-top: 80px;
   padding-bottom: 0;
   background:
-    radial-gradient(circle at 88% 8%, rgba(77, 142, 255, 0.1), transparent 28%),
-    radial-gradient(circle at 4% 88%, rgba(87, 27, 193, 0.12), transparent 30%),
-    linear-gradient(135deg, #060e20 0%, var(--color-background) 42%, #131b2e 100%);
+    radial-gradient(circle at 86% 8%, rgba(77, 142, 255, 0.08), transparent 28%),
+    radial-gradient(circle at 8% 86%, rgba(87, 27, 193, 0.1), transparent 30%),
+    #0a1323;
 }
 
 .desktop-inbox-shell {
   min-height: calc(100vh - 80px);
-  grid-template-columns: 340px minmax(0, 1fr) 320px;
-  background: transparent;
+  grid-template-columns: 340px minmax(0, 1fr);
+  background: #0a1323;
+  border-top: 1px solid var(--color-outline-soft);
 }
 
 .desktop-inbox-sidebar {
-  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-background) 100%);
+  background: #131c2b;
   border-right: 1px solid var(--color-outline-soft);
   padding: 28px 24px 16px;
+}
+
+.desktop-profile-panel {
+  display: none;
 }
 
 .desktop-sidebar-header {
@@ -5024,7 +5040,7 @@ body.syncrolly-body {
   gap: 10px;
   overflow: visible;
   border-bottom: 1px solid var(--color-outline-soft);
-  padding-bottom: 10px;
+  padding: 0 0 12px;
 }
 
 .desktop-tab-button {
@@ -5056,13 +5072,13 @@ body.syncrolly-body {
 .desktop-thread-row:hover,
 .desktop-form-row-main:hover,
 .desktop-instagram-row:hover {
-  background: var(--color-surface-container-low);
+  background: #172030;
 }
 
 .desktop-thread-row.selected,
 .desktop-form-row.selected .desktop-form-row-main {
-  background: var(--color-surface-container-high);
-  border-color: var(--color-outline-soft);
+  background: #212a3b;
+  border-color: rgba(66, 71, 83, 0.92);
   border-left: 4px solid var(--color-primary-strong);
   box-shadow: none;
 }
@@ -5124,7 +5140,7 @@ body.syncrolly-body {
 }
 
 .desktop-message-panel {
-  background: var(--color-background);
+  background: #0a1323;
   box-shadow: none;
 }
 
@@ -5175,20 +5191,21 @@ body.syncrolly-body {
 
 .desktop-message-scroll {
   background:
-    radial-gradient(circle at 74% 12%, rgba(77, 142, 255, 0.06), transparent 24%),
-    var(--color-background);
-  padding: 60px min(8vw, 92px) 34px;
+    radial-gradient(circle at 74% 12%, rgba(77, 142, 255, 0.055), transparent 24%),
+    #0a1323;
+  padding: 60px min(9vw, 118px) 34px;
 }
 
 .message-bubble.incoming {
   color: var(--color-text-primary);
-  background: var(--color-surface-container-high);
+  background: #2c3546;
   border: 1px solid var(--color-outline-soft);
 }
 
 .message-bubble.outgoing {
-  color: var(--color-on-primary);
-  background: linear-gradient(135deg, var(--color-primary-strong), var(--color-accent));
+  color: #08101f;
+  background: #5b93ff;
+  border: 1px solid rgba(173, 198, 255, 0.2);
 }
 
 .message-time {
@@ -5227,24 +5244,6 @@ body.syncrolly-body {
   border-radius: 8px;
   background: rgba(19, 27, 46, 0.88);
   box-shadow: 0 24px 50px rgba(5, 9, 16, 0.34);
-}
-
-.desktop-composer-toolbar {
-  min-height: 52px;
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  padding: 0 22px;
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-outline-soft);
-  font-size: 0.92rem;
-  font-weight: 900;
-}
-
-.desktop-composer-toolbar i {
-  width: 1px;
-  height: 22px;
-  background: var(--color-outline-soft);
 }
 
 .desktop-composer-action-row {
@@ -5301,6 +5300,120 @@ body.syncrolly-body {
 .send-button svg {
   width: 18px;
   height: 18px;
+}
+
+.desktop-thread-list {
+  gap: 0;
+  padding-top: 0;
+}
+
+.desktop-thread-row,
+.desktop-form-row-main,
+.desktop-instagram-row {
+  min-height: 102px;
+  padding: 18px 16px;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(66, 71, 83, 0.42);
+}
+
+.desktop-thread-avatar-frame {
+  border-radius: 12px;
+}
+
+.desktop-thread-dot,
+.desktop-instagram-dot {
+  right: 0;
+  top: auto;
+  bottom: 0;
+  width: 13px;
+  height: 13px;
+}
+
+.desktop-thread-name {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.desktop-thread-preview {
+  font-size: 0.92rem;
+}
+
+.desktop-thread-time {
+  color: #adc6ff;
+  font-size: 0.78rem;
+}
+
+.desktop-message-stack {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  gap: 22px;
+}
+
+.message-row {
+  max-width: min(76%, 660px);
+}
+
+.message-bubble {
+  padding: 20px 22px;
+  border-radius: 14px;
+}
+
+.message-text {
+  font-size: 1.12rem;
+  line-height: 1.55;
+}
+
+.day-pill {
+  background: #212a3b;
+  border: 1px solid rgba(66, 71, 83, 0.78);
+}
+
+.day-pill-text {
+  color: #c2c6d6;
+  font-size: 0.78rem;
+}
+
+.desktop-conversation-title {
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.desktop-conversation-subtitle {
+  color: #8c909f;
+  font-weight: 600;
+}
+
+.icon-button.subtle {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+}
+
+.icon-button.subtle:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-container-high);
+}
+
+.thread-input {
+  font-size: 1.08rem;
+}
+
+.desktop-composer-action-row {
+  padding-bottom: 16px;
+}
+
+.send-button {
+  min-height: 46px;
+  border-radius: 6px;
+  font-weight: 900;
+}
+
+@media (min-width: 1500px) {
+  .desktop-inbox-shell {
+    grid-template-columns: 380px minmax(0, 1fr);
+  }
 }
 
 .desktop-profile-panel {
