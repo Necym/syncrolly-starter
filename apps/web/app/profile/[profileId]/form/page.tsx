@@ -278,7 +278,7 @@ export default function PublicInquiryFormPage() {
         <main className="center-stage-page">
           <div className="center-stage">
             <h1 className="stage-title">Sign in to continue</h1>
-            <p className="stage-body">You need a Syncrolly account to submit a creator inquiry on desktop.</p>
+            <p className="stage-body">You need a Synced-In account to submit a creator inquiry on desktop.</p>
           </div>
         </main>
       </div>
@@ -315,7 +315,7 @@ export default function PublicInquiryFormPage() {
           <div className="quiz-topbar-inner">
             <button type="button" className="quiz-brand" onClick={handleBack}>
               <BrandMark />
-              <span>Syncrolly</span>
+              <span>Synced-In</span>
             </button>
 
             <nav className="quiz-nav" aria-label="Inquiry sections">
@@ -367,7 +367,7 @@ export default function PublicInquiryFormPage() {
         <div className="quiz-topbar-inner">
           <button type="button" className="quiz-brand" onClick={handleBack}>
             <BrandMark />
-            <span>Syncrolly</span>
+            <span>Synced-In</span>
           </button>
 
           <nav className="quiz-nav" aria-label="Inquiry sections">

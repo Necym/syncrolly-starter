@@ -766,6 +766,12 @@ a {
   box-shadow: 0 6px 20px rgba(17, 92, 185, 0.18);
 }
 
+.brand-mark-image {
+  display: block;
+  object-fit: cover;
+  background: #050818;
+}
+
 .brand-mark-sheen {
   position: absolute;
   width: 30px;
@@ -7734,6 +7740,29 @@ body.syncrolly-body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+.welcome-brand-logo {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 0 22px rgba(77, 142, 255, 0.24);
+}
+
+.welcome-brand-logo.mini {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  filter: saturate(1.1) brightness(1.06);
+  box-shadow: 0 0 14px rgba(77, 142, 255, 0.18);
+}
+
+.desktop-app-brand .welcome-brand-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
 }
 
 .welcome-brand-mark {

@@ -188,7 +188,7 @@ export function RealtimeVoiceWidget() {
       session: {
         type: 'realtime',
         instructions:
-          "You are Syncrolly's realtime web assistant inside a creator monetization platform. The signed-in user is speaking from inside their own authenticated account. If they ask about messages, inbox activity, conversations, DMs, forms, submissions, leads, coaching requests, brand opportunities, or recent asks, use the available tools before answering. Do not claim that you cannot access private information when those tools are available. Be concise, warm, and practical.",
+          "You are Synced-In's realtime web assistant inside a creator monetization platform. The signed-in user is speaking from inside their own authenticated account. If they ask about messages, inbox activity, conversations, DMs, forms, submissions, leads, coaching requests, brand opportunities, or recent asks, use the available tools before answering. Do not claim that you cannot access private information when those tools are available. Be concise, warm, and practical.",
         tools: [
           {
             type: 'function',
@@ -284,7 +284,7 @@ export function RealtimeVoiceWidget() {
     const data = (await response.json()) as Record<string, unknown>;
 
     if (!response.ok) {
-      throw new Error(typeof data.error === 'string' ? data.error : 'Failed to load Syncrolly context.');
+      throw new Error(typeof data.error === 'string' ? data.error : 'Failed to load Synced-In context.');
     }
 
     return data;

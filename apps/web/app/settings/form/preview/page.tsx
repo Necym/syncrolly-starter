@@ -201,7 +201,7 @@ export default function FormPreviewPage() {
         <div className="quiz-topbar-inner">
           <button type="button" className="quiz-brand" onClick={() => router.push('/settings/form')}>
             <BrandMark />
-            <span>Syncrolly</span>
+            <span>Synced-In</span>
           </button>
 
           <nav className="quiz-nav" aria-label="Form preview sections">

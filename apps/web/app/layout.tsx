@@ -5,7 +5,7 @@ import { RealtimeVoiceWidget } from './realtime-voice-widget';
 
 export const metadata = {
   title: `${APP_NAME} | Creator Inbox`,
-  description: 'Premium inbox shell for Syncrolly creators across mobile and web.'
+  description: 'Premium inbox shell for Synced-In creators across mobile and web.'
 };
 
 const rootVariables = {

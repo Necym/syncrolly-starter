@@ -1,4 +1,4 @@
-export const APP_NAME = 'Syncrolly';
+export const APP_NAME = 'Synced-In';
 
 export const inboxFilters = [
   { key: 'all', label: 'All' },

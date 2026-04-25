@@ -26,7 +26,7 @@ export async function POST() {
       type: 'realtime',
       model: DEFAULT_REALTIME_MODEL,
       instructions:
-        'You are Syncrolly’s experimental realtime web voice assistant. Speak naturally, keep responses concise, and be helpful.',
+        'You are Synced-In’s experimental realtime web voice assistant. Speak naturally, keep responses concise, and be helpful.',
       audio: {
         input: {
           transcription: {

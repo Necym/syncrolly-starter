@@ -291,7 +291,7 @@ export default function ThreadPage() {
         <main className="center-stage-page">
           <div className="center-stage">
             <h1 className="stage-title">Sign in first</h1>
-            <p className="stage-body">This conversation is tied to your real Syncrolly account.</p>
+            <p className="stage-body">This conversation is tied to your real Synced-In account.</p>
           </div>
         </main>
       </div>

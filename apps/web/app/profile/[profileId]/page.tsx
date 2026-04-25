@@ -393,7 +393,7 @@ export default function PublicProfilePage() {
         <main className="center-stage-page">
           <div className="center-stage">
             <h1 className="stage-title">Sign in to continue</h1>
-            <p className="stage-body">Public creator profiles on web use your authenticated Syncrolly account.</p>
+            <p className="stage-body">Public creator profiles on web use your authenticated Synced-In account.</p>
           </div>
         </main>
       </div>
@@ -435,8 +435,8 @@ export default function PublicProfilePage() {
     profile.role === 'creator' ? profile.creatorProfile?.niche?.trim() || 'Creator profile' : 'Supporter profile';
   const subtitle =
     profile.role === 'creator'
-      ? profile.creatorProfile?.headline?.trim() || 'Creator on Syncrolly'
-      : 'Supporter on Syncrolly';
+      ? profile.creatorProfile?.headline?.trim() || 'Creator on Synced-In'
+      : 'Supporter on Synced-In';
   const resolvedBio = profile.bio.trim() || 'This user has not added a bio yet.';
   const showAvatarImage = Boolean(profile.avatarUrl && !avatarFailed);
   const creatorPageBlocks =

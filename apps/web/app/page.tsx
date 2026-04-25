@@ -222,7 +222,7 @@ function HomePageContent() {
     inboxTab === 'forms' ? selectedSubmission?.supporterId ?? null : selectedThread?.participantId ?? null;
   const activeParticipantFallbackName =
     inboxTab === 'forms'
-      ? selectedSubmission?.supporterName ?? 'Syncrolly user'
+      ? selectedSubmission?.supporterName ?? 'Synced-In user'
       : selectedConversation?.participantName ?? selectedThread?.participantName ?? 'Conversation';
   const activeParticipantFallbackAvatar =
     inboxTab === 'forms'
@@ -1145,17 +1145,11 @@ function HomePageContent() {
     );
   }
 
-  function renderSyncrollyWordmark() {
+  function renderSyncedInWordmark() {
     return (
       <span className="desktop-app-brand-content">
-        <span className="welcome-brand-mark" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-        </span>
-        <span>Syncrolly</span>
+        <img src="/synced-in-logo.png" alt="" className="welcome-brand-logo" aria-hidden="true" />
+        <span>Synced-In</span>
       </span>
     );
   }
@@ -1176,8 +1170,8 @@ function HomePageContent() {
     return (
       <header className="shell-header">
         <div className={`shell-header-inner${wide ? ' shell-header-inner-wide' : ''}`}>
-          <button type="button" className="desktop-app-brand" onClick={() => router.push('/')} aria-label="Syncrolly home">
-            {renderSyncrollyWordmark()}
+          <button type="button" className="desktop-app-brand" onClick={() => router.push('/')} aria-label="Synced-In home">
+            {renderSyncedInWordmark()}
           </button>
 
           {wide ? (
@@ -1572,7 +1566,7 @@ function HomePageContent() {
               <p className="desktop-form-review-body-copy">
                 {instagramConnection
                   ? 'This flow now runs completely in the browser. Once Instagram approves the connection, this lane will refresh and future DMs will land here without going through your native inbox.'
-                  : 'Use the Connect Instagram button on the left. The OAuth flow will stay in the browser, return here, and then Syncrolly will read the saved connection from Supabase.'}
+                  : 'Use the Connect Instagram button on the left. The OAuth flow will stay in the browser, return here, and then Synced-In will read the saved connection from Supabase.'}
               </p>
               {instagramDebug ? <p className="desktop-instagram-debug">{instagramDebug}</p> : null}
 
@@ -1667,7 +1661,7 @@ function HomePageContent() {
               <span className="desktop-conversation-subtitle">
                 {selectedParticipantProfile?.role === 'creator'
                   ? selectedParticipantProfile.creatorProfile?.niche || 'Creator workspace'
-                  : 'Syncrolly conversation'}
+                  : 'Synced-In conversation'}
               </span>
             </div>
           </div>
@@ -1797,7 +1791,7 @@ function HomePageContent() {
             </h2>
             <p className="desktop-profile-role">
               {instagramConnection
-                ? 'Leads stay separate from your main Syncrolly DMs.'
+                ? 'Leads stay separate from your main Synced-In DMs.'
                 : 'Connect once in the browser, then refresh this tab.'}
             </p>
           </div>
@@ -1976,15 +1970,9 @@ function HomePageContent() {
       <div className="welcome-page">
         <nav className="welcome-nav">
           <div className="welcome-nav-inner">
-            <a className="welcome-brand" href="#welcome-top" aria-label="Syncrolly home">
-              <span className="welcome-brand-mark" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-              </span>
-              <span>Syncrolly</span>
+            <a className="welcome-brand" href="#welcome-top" aria-label="Synced-In home">
+              <img src="/synced-in-logo.png" alt="" className="welcome-brand-logo" aria-hidden="true" />
+              <span>Synced-In</span>
             </a>
 
             <div className="welcome-nav-links" aria-label="Welcome page sections">
@@ -2021,7 +2009,7 @@ function HomePageContent() {
               </h1>
 
               <p>
-                Unify your workflow. From first message to forms, scheduling, programs, and monetization, Syncrolly is
+                Unify your workflow. From first message to forms, scheduling, programs, and monetization, Synced-In is
                 the operating layer behind your creator business.
               </p>
 
@@ -2036,7 +2024,7 @@ function HomePageContent() {
                 </a>
               </div>
 
-              <div className="welcome-capability-strip" aria-label="Syncrolly capabilities">
+              <div className="welcome-capability-strip" aria-label="Synced-In capabilities">
                 <div className="welcome-capability-card">
                   <span className="welcome-capability-icon profile" aria-hidden="true">
                     <svg viewBox="0 0 32 32">
@@ -2204,14 +2192,8 @@ function HomePageContent() {
 
         <footer id="about" className="welcome-footer">
           <div className="welcome-footer-brand">
-            <span className="welcome-brand-mark mini" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-            </span>
-            <strong>Syncrolly</strong>
+            <img src="/synced-in-logo.png" alt="" className="welcome-brand-logo mini" aria-hidden="true" />
+            <strong>Synced-In</strong>
           </div>
           <div className="welcome-footer-links">
             <a href="#about">Privacy</a>
@@ -2219,7 +2201,7 @@ function HomePageContent() {
             <a href="#about">Security</a>
             <a href="#about">Careers</a>
           </div>
-          <p>© 2026 Syncrolly. Creator operations in one precise flow.</p>
+          <p>© 2026 Synced-In. Creator operations in one precise flow.</p>
         </footer>
       </div>
     );
@@ -2235,7 +2217,7 @@ function HomePageContent() {
               <p className="auth-eyebrow">Profile setup</p>
               <h1 className="auth-title">Finish your account</h1>
               <p className="auth-body">
-                Choose how you show up in Syncrolly so the inbox, profile, and new-message search all use real data.
+                Choose how you show up in Synced-In so the inbox, profile, and new-message search all use real data.
               </p>
             </section>
 

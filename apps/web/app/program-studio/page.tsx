@@ -226,7 +226,7 @@ export default function ProgramStudioPage() {
           <div className="program-studio-rail-block">
             <p>Parity focus</p>
             <strong>Mobile data, web-native canvas.</strong>
-            <span>This screen reads and writes the same program tables as the app while using the dark Syncrolly visual system.</span>
+            <span>This screen reads and writes the same program tables as the app while using the dark Synced-In visual system.</span>
           </div>
           <div className="program-studio-rail-list">
             <span>Structure modules</span>

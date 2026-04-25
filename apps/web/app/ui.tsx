@@ -20,13 +20,7 @@ export function getErrorMessage(error: unknown, fallback = 'Something went wrong
 }
 
 export function BrandMark() {
-  return (
-    <div className="brand-mark" aria-hidden="true">
-      <div className="brand-mark-sheen" />
-      <div className="brand-mark-dot" />
-      <span className="brand-mark-glyph">S</span>
-    </div>
-  );
+  return <img src="/synced-in-logo.png" alt="" className="brand-mark brand-mark-image" aria-hidden="true" />;
 }
 
 export function BottomNav({ activeKey = 'inbox' }: { activeKey?: string }) {
