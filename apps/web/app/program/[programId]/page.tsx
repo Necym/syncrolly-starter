@@ -1,16 +1,23 @@
 'use client';
 
-import type { ProgramDetail, ProgramLesson } from '@syncrolly/core';
+import type { ProgramDetail, ProgramLesson, ProgramModule } from '@syncrolly/core';
 import {
   createProgramLesson,
   createProgramModule,
+  deleteProgramLesson,
+  deleteProgramModule,
   getProgramDetails,
   markProgramLessonComplete,
-  updateProgram
+  reorderProgramLesson,
+  reorderProgramModule,
+  updateProgram,
+  updateProgramLesson,
+  updateProgramModule,
+  uploadProgramThumbnail
 } from '@syncrolly/data';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getProgramFallbackGradient, truncateProgramText } from '../../../lib/programs';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getProgramFallbackGradient } from '../../../lib/programs';
 import { getPreferredRole, useWebSession } from '../../../lib/session';
 import { Icon, getErrorMessage } from '../../ui';
 
@@ -18,6 +25,14 @@ type NoticeState = {
   tone: 'error' | 'success';
   message: string;
 };
+
+type ModuleDrafts = Record<
+  string,
+  {
+    title: string;
+    summary: string;
+  }
+>;
 
 function getInitials(value: string) {
   const words = value
@@ -58,12 +73,80 @@ function getLessonAssetLabel(lesson: ProgramLesson) {
   return 'Video lesson';
 }
 
+function getLessonKind(lesson: ProgramLesson) {
+  const lowerUrl = lesson.videoUrl?.toLowerCase() ?? '';
+
+  if (!lowerUrl) {
+    return 'Draft';
+  }
+
+  if (lowerUrl.includes('.pdf') || lowerUrl.includes('.doc')) {
+    return 'Reading';
+  }
+
+  return 'Video';
+}
+
+function getLessonMeta(lesson: ProgramLesson) {
+  return `${getLessonKind(lesson)} - ${getLessonAssetLabel(lesson)}`;
+}
+
+function getProgramDurationSummary(program: ProgramDetail) {
+  if (!program.lessonCount) {
+    return 'Add lessons';
+  }
+
+  const durationLabels = program.lessons.map((lesson) => lesson.durationLabel?.trim()).filter(Boolean);
+
+  if (!durationLabels.length) {
+    return `${program.moduleCount} modules - ${program.lessonCount} lessons`;
+  }
+
+  return durationLabels.length === program.lessonCount
+    ? durationLabels.join(' + ')
+    : `${durationLabels.join(' + ')} + ${program.lessonCount - durationLabels.length} drafts`;
+}
+
+function getModuleDurationSummary(module: ProgramModule) {
+  if (!module.lessons.length) {
+    return 'No lessons yet';
+  }
+
+  const durationLabels = module.lessons.map((lesson) => lesson.durationLabel?.trim()).filter(Boolean);
+
+  if (!durationLabels.length) {
+    return 'Duration unset';
+  }
+
+  return durationLabels.length === module.lessonCount
+    ? durationLabels.join(' + ')
+    : `${durationLabels.join(' + ')} + ${module.lessonCount - durationLabels.length} drafts`;
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en', {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
   }).format(new Date(value));
+}
+
+function getFileExtension(file: File) {
+  const extension = file.name.split('.').pop()?.trim();
+
+  if (extension) {
+    return extension.toLowerCase();
+  }
+
+  if (file.type.includes('png')) {
+    return 'png';
+  }
+
+  if (file.type.includes('webp')) {
+    return 'webp';
+  }
+
+  return 'jpg';
 }
 
 export default function ProgramDetailPage() {
@@ -73,18 +156,32 @@ export default function ProgramDetailPage() {
   const { user, loading: sessionLoading, supabase, isConfigured } = useWebSession();
   const role = getPreferredRole(user);
   const isCreator = role === 'creator';
+  const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
   const [program, setProgram] = useState<ProgramDetail | null>(null);
   const [loadingProgram, setLoadingProgram] = useState(false);
   const [feedback, setFeedback] = useState<NoticeState | null>(null);
   const [savingProgram, setSavingProgram] = useState(false);
   const [addingModule, setAddingModule] = useState(false);
+  const [savingModuleId, setSavingModuleId] = useState<string | null>(null);
+  const [deletingModuleId, setDeletingModuleId] = useState<string | null>(null);
+  const [movingModuleId, setMovingModuleId] = useState<string | null>(null);
   const [addingLesson, setAddingLesson] = useState(false);
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
+  const [deletingLessonId, setDeletingLessonId] = useState<string | null>(null);
+  const [movingLessonId, setMovingLessonId] = useState<string | null>(null);
   const [completingLessonId, setCompletingLessonId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftSubtitle, setDraftSubtitle] = useState('');
   const [draftDescription, setDraftDescription] = useState('');
+  const [draftThumbnailUrl, setDraftThumbnailUrl] = useState('');
+  const [pendingThumbnailFile, setPendingThumbnailFile] = useState<File | null>(null);
+  const [pendingThumbnailPreview, setPendingThumbnailPreview] = useState('');
+  const [moduleDrafts, setModuleDrafts] = useState<ModuleDrafts>({});
+  const [expandedModuleIds, setExpandedModuleIds] = useState<Set<string>>(() => new Set());
+  const [showAddModule, setShowAddModule] = useState(false);
   const [moduleTitle, setModuleTitle] = useState('');
   const [moduleSummary, setModuleSummary] = useState('');
+  const [activeLessonComposerModuleId, setActiveLessonComposerModuleId] = useState('');
   const [lessonTitle, setLessonTitle] = useState('');
   const [lessonSummary, setLessonSummary] = useState('');
   const [lessonDuration, setLessonDuration] = useState('');
@@ -96,7 +193,31 @@ export default function ProgramDetailPage() {
     setDraftTitle(nextProgram?.title ?? '');
     setDraftSubtitle(nextProgram?.subtitle ?? '');
     setDraftDescription(nextProgram?.description ?? '');
+    setDraftThumbnailUrl(nextProgram?.thumbnailUrl ?? '');
+    setPendingThumbnailFile(null);
+    setPendingThumbnailPreview('');
     setSelectedModuleId((current) => current || nextProgram?.modules[0]?.id || '');
+    setModuleDrafts(
+      Object.fromEntries(
+        (nextProgram?.modules ?? []).map((module) => [
+          module.id,
+          {
+            title: module.title,
+            summary: module.summary
+          }
+        ])
+      )
+    );
+    setExpandedModuleIds((current) => {
+      const moduleIds = new Set((nextProgram?.modules ?? []).map((module) => module.id));
+      const nextExpanded = new Set([...current].filter((moduleId) => moduleIds.has(moduleId)));
+
+      if (!nextExpanded.size && nextProgram?.modules[0]) {
+        nextExpanded.add(nextProgram.modules[0].id);
+      }
+
+      return nextExpanded;
+    });
   }, []);
 
   const loadProgram = useCallback(async () => {
@@ -125,9 +246,26 @@ export default function ProgramDetailPage() {
     void loadProgram();
   }, [loadProgram]);
 
+  useEffect(() => {
+    return () => {
+      if (pendingThumbnailPreview) {
+        URL.revokeObjectURL(pendingThumbnailPreview);
+      }
+    };
+  }, [pendingThumbnailPreview]);
+
   const gradient = useMemo(() => getProgramFallbackGradient(program?.title ?? 'program'), [program?.title]);
-  const nextLesson = useMemo(() => program?.lessons.find((lesson) => !lesson.isCompleted) ?? null, [program]);
   const progress = Math.max(0, Math.min(100, program?.progressPercent ?? 0));
+  const thumbnailPreview = pendingThumbnailPreview || draftThumbnailUrl || program?.thumbnailUrl || '';
+
+  function clearLessonComposer() {
+    setEditingLessonId(null);
+    setActiveLessonComposerModuleId('');
+    setLessonTitle('');
+    setLessonSummary('');
+    setLessonDuration('');
+    setLessonAssetUrl('');
+  }
 
   async function handleSaveProgram() {
     if (!supabase || !user || !program || savingProgram || !isCreator) {
@@ -138,19 +276,30 @@ export default function ProgramDetailPage() {
     setFeedback(null);
 
     try {
+      let nextThumbnailUrl = draftThumbnailUrl.trim() || undefined;
+
+      if (pendingThumbnailFile) {
+        nextThumbnailUrl = await uploadProgramThumbnail(supabase, {
+          userId: user.id,
+          fileData: await pendingThumbnailFile.arrayBuffer(),
+          contentType: pendingThumbnailFile.type || 'image/jpeg',
+          fileExtension: getFileExtension(pendingThumbnailFile)
+        });
+      }
+
       const updatedProgram = await updateProgram(supabase, {
         programId: program.id,
         creatorId: user.id,
         title: draftTitle,
         subtitle: draftSubtitle,
         description: draftDescription,
-        thumbnailUrl: program.thumbnailUrl
+        thumbnailUrl: nextThumbnailUrl
       });
 
       syncProgramState(updatedProgram);
       setFeedback({
         tone: 'success',
-        message: 'Program overview saved.'
+        message: 'Program details saved.'
       });
     } catch (error) {
       setFeedback({
@@ -159,6 +308,33 @@ export default function ProgramDetailPage() {
       });
     } finally {
       setSavingProgram(false);
+    }
+  }
+
+  function handleThumbnailFileChange(file: File | null) {
+    if (!file) {
+      return;
+    }
+
+    if (pendingThumbnailPreview) {
+      URL.revokeObjectURL(pendingThumbnailPreview);
+    }
+
+    setPendingThumbnailFile(file);
+    setPendingThumbnailPreview(URL.createObjectURL(file));
+  }
+
+  function handleRemoveThumbnail() {
+    if (pendingThumbnailPreview) {
+      URL.revokeObjectURL(pendingThumbnailPreview);
+    }
+
+    setPendingThumbnailFile(null);
+    setPendingThumbnailPreview('');
+    setDraftThumbnailUrl('');
+
+    if (thumbnailInputRef.current) {
+      thumbnailInputRef.current.value = '';
     }
   }
 
@@ -171,13 +347,15 @@ export default function ProgramDetailPage() {
     setFeedback(null);
 
     try {
-      await createProgramModule(supabase, {
+      const createdModule = await createProgramModule(supabase, {
         programId: program.id,
         title: moduleTitle,
         summary: moduleSummary
       });
       setModuleTitle('');
       setModuleSummary('');
+      setShowAddModule(false);
+      setExpandedModuleIds((current) => new Set(current).add(createdModule.id));
       await loadProgram();
       setFeedback({
         tone: 'success',
@@ -193,7 +371,127 @@ export default function ProgramDetailPage() {
     }
   }
 
-  async function handleAddLesson() {
+  async function handleSaveModule(module: ProgramModule) {
+    if (!supabase || !isCreator || savingModuleId) {
+      return;
+    }
+
+    const draft = moduleDrafts[module.id] ?? {
+      title: module.title,
+      summary: module.summary
+    };
+
+    setSavingModuleId(module.id);
+    setFeedback(null);
+
+    try {
+      await updateProgramModule(supabase, {
+        moduleId: module.id,
+        title: draft.title,
+        summary: draft.summary
+      });
+      await loadProgram();
+      setFeedback({
+        tone: 'success',
+        message: 'Module updated.'
+      });
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: getErrorMessage(error, 'Module could not be updated.')
+      });
+    } finally {
+      setSavingModuleId(null);
+    }
+  }
+
+  async function handleDeleteModule(module: ProgramModule) {
+    if (!supabase || !program || !isCreator || deletingModuleId) {
+      return;
+    }
+
+    if (!window.confirm(`Delete "${module.title}" and its lessons?`)) {
+      return;
+    }
+
+    setDeletingModuleId(module.id);
+    setFeedback(null);
+
+    try {
+      await deleteProgramModule(supabase, {
+        programId: program.id,
+        moduleId: module.id
+      });
+      await loadProgram();
+      setFeedback({
+        tone: 'success',
+        message: 'Module deleted.'
+      });
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: getErrorMessage(error, 'Module could not be deleted.')
+      });
+    } finally {
+      setDeletingModuleId(null);
+    }
+  }
+
+  async function handleMoveModule(module: ProgramModule, direction: -1 | 1) {
+    if (!supabase || !program || !isCreator || movingModuleId) {
+      return;
+    }
+
+    const modules = [...program.modules].sort((left, right) => left.position - right.position);
+    const moduleIndex = modules.findIndex((candidate) => candidate.id === module.id);
+    const swapModule = modules[moduleIndex + direction];
+
+    if (!swapModule) {
+      return;
+    }
+
+    setMovingModuleId(module.id);
+    setFeedback(null);
+
+    try {
+      await reorderProgramModule(supabase, {
+        moduleId: module.id,
+        swapModuleId: swapModule.id,
+        currentPosition: module.position,
+        targetPosition: swapModule.position
+      });
+      await loadProgram();
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: getErrorMessage(error, 'Module order could not be updated.')
+      });
+    } finally {
+      setMovingModuleId(null);
+    }
+  }
+
+  function handleOpenLessonComposer(moduleId: string) {
+    setEditingLessonId(null);
+    setSelectedModuleId(moduleId);
+    setActiveLessonComposerModuleId(moduleId);
+    setLessonTitle('');
+    setLessonSummary('');
+    setLessonDuration('');
+    setLessonAssetUrl('');
+  }
+
+  function handleEditLesson(lesson: ProgramLesson) {
+    setEditingLessonId(lesson.id);
+    setSelectedModuleId(lesson.moduleId);
+    setActiveLessonComposerModuleId(lesson.moduleId);
+    setLessonTitle(lesson.title);
+    setLessonSummary(lesson.summary);
+    setLessonDuration(lesson.durationLabel ?? '');
+    setLessonAssetUrl(lesson.videoUrl ?? '');
+  }
+
+  async function handleSaveLesson() {
     if (!supabase || !program || addingLesson || !isCreator) {
       return;
     }
@@ -202,30 +500,107 @@ export default function ProgramDetailPage() {
     setFeedback(null);
 
     try {
-      await createProgramLesson(supabase, {
-        programId: program.id,
-        moduleId: selectedModuleId || program.modules[0]?.id,
-        title: lessonTitle,
-        summary: lessonSummary,
-        durationLabel: lessonDuration,
-        videoUrl: lessonAssetUrl
-      });
-      setLessonTitle('');
-      setLessonSummary('');
-      setLessonDuration('');
-      setLessonAssetUrl('');
+      if (editingLessonId) {
+        await updateProgramLesson(supabase, {
+          lessonId: editingLessonId,
+          moduleId: selectedModuleId || activeLessonComposerModuleId || program.modules[0]?.id,
+          title: lessonTitle,
+          summary: lessonSummary,
+          durationLabel: lessonDuration,
+          videoUrl: lessonAssetUrl
+        });
+      } else {
+        await createProgramLesson(supabase, {
+          programId: program.id,
+          moduleId: selectedModuleId || activeLessonComposerModuleId || program.modules[0]?.id,
+          title: lessonTitle,
+          summary: lessonSummary,
+          durationLabel: lessonDuration,
+          videoUrl: lessonAssetUrl
+        });
+      }
+
+      clearLessonComposer();
       await loadProgram();
       setFeedback({
         tone: 'success',
-        message: 'Lesson added.'
+        message: editingLessonId ? 'Lesson updated.' : 'Lesson added.'
       });
     } catch (error) {
       setFeedback({
         tone: 'error',
-        message: getErrorMessage(error, 'Lesson could not be added.')
+        message: getErrorMessage(error, editingLessonId ? 'Lesson could not be updated.' : 'Lesson could not be added.')
       });
     } finally {
       setAddingLesson(false);
+    }
+  }
+
+  async function handleDeleteLesson(lesson: ProgramLesson) {
+    if (!supabase || !isCreator || deletingLessonId) {
+      return;
+    }
+
+    if (!window.confirm(`Delete "${lesson.title}"?`)) {
+      return;
+    }
+
+    setDeletingLessonId(lesson.id);
+    setFeedback(null);
+
+    try {
+      await deleteProgramLesson(supabase, {
+        lessonId: lesson.id
+      });
+      if (editingLessonId === lesson.id) {
+        clearLessonComposer();
+      }
+      await loadProgram();
+      setFeedback({
+        tone: 'success',
+        message: 'Lesson deleted.'
+      });
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: getErrorMessage(error, 'Lesson could not be deleted.')
+      });
+    } finally {
+      setDeletingLessonId(null);
+    }
+  }
+
+  async function handleMoveLesson(module: ProgramModule, lesson: ProgramLesson, direction: -1 | 1) {
+    if (!supabase || !isCreator || movingLessonId) {
+      return;
+    }
+
+    const lessons = [...module.lessons].sort((left, right) => left.position - right.position);
+    const lessonIndex = lessons.findIndex((candidate) => candidate.id === lesson.id);
+    const swapLesson = lessons[lessonIndex + direction];
+
+    if (!swapLesson) {
+      return;
+    }
+
+    setMovingLessonId(lesson.id);
+    setFeedback(null);
+
+    try {
+      await reorderProgramLesson(supabase, {
+        lessonId: lesson.id,
+        swapLessonId: swapLesson.id,
+        currentPosition: lesson.position,
+        targetPosition: swapLesson.position
+      });
+      await loadProgram();
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: getErrorMessage(error, 'Lesson order could not be updated.')
+      });
+    } finally {
+      setMovingLessonId(null);
     }
   }
 
@@ -259,7 +634,7 @@ export default function ProgramDetailPage() {
 
   if (!isConfigured || !supabase) {
     return (
-      <main className="program-detail-page">
+      <main className="program-detail-page program-builder-page">
         <div className="program-studio-empty">
           <p>Program</p>
           <h1>Connect Supabase to view programs.</h1>
@@ -270,7 +645,7 @@ export default function ProgramDetailPage() {
 
   if (sessionLoading || loadingProgram) {
     return (
-      <main className="program-detail-page">
+      <main className="program-detail-page program-builder-page">
         <div className="program-studio-skeleton">
           <div />
           <div />
@@ -282,7 +657,7 @@ export default function ProgramDetailPage() {
 
   if (!user) {
     return (
-      <main className="program-detail-page">
+      <main className="program-detail-page program-builder-page">
         <div className="program-studio-empty">
           <p>Program</p>
           <h1>Sign in to view this program.</h1>
@@ -293,7 +668,7 @@ export default function ProgramDetailPage() {
 
   if (!program) {
     return (
-      <main className="program-detail-page">
+      <main className="program-detail-page program-builder-page">
         <div className="program-studio-empty">
           <p>Program</p>
           <h1>Program not found.</h1>
@@ -306,7 +681,7 @@ export default function ProgramDetailPage() {
   }
 
   return (
-    <main className="program-detail-page">
+    <main className="program-detail-page program-builder-page">
       <div className="program-studio-orb program-studio-orb-one" />
       <div className="program-studio-orb program-studio-orb-two" />
 
@@ -320,203 +695,353 @@ export default function ProgramDetailPage() {
         </button>
       </header>
 
-      <section className="program-detail-hero">
-        <div className="program-detail-art">
-          {program.thumbnailUrl ? (
-            <img src={program.thumbnailUrl} alt="" />
-          ) : (
-            <div
-              className="program-detail-gradient"
-              style={{
-                background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]})`
-              }}
-            >
-              <span>{getInitials(program.title)}</span>
-            </div>
-          )}
+      <section className="program-builder-heading">
+        <div>
+          <h1>{isCreator ? 'Program Builder' : program.title}</h1>
+          <p>{isCreator ? 'Design and structure your educational content.' : program.subtitle || 'Continue your program.'}</p>
         </div>
-
-        <div className="program-detail-hero-copy">
-          <p>{isCreator ? 'Creator program' : program.creatorName}</p>
-          <h1>{program.title}</h1>
-          <span>{program.subtitle || truncateProgramText(program.description || 'Structured lessons for supporters.', 180)}</span>
-          <div className="program-detail-stat-row">
-            <MetricPill label="Modules" value={String(program.moduleCount)} />
-            <MetricPill label="Lessons" value={String(program.lessonCount)} />
-            <MetricPill label={isCreator ? 'Learners' : 'Progress'} value={isCreator ? String(program.enrolledCount) : `${progress}%`} />
+        {isCreator ? (
+          <div className="program-builder-heading-actions">
+            <button type="button" className="program-builder-secondary-button" onClick={handleSaveProgram} disabled={savingProgram}>
+              {savingProgram ? 'Saving' : 'Save Draft'}
+            </button>
+            <button type="button" className="program-builder-primary-button" onClick={handleSaveProgram} disabled={savingProgram}>
+              {savingProgram ? 'Publishing' : 'Publish'}
+            </button>
           </div>
-        </div>
-
-        <div className="program-detail-progress-card">
-          <span>{isCreator ? 'Live structure' : 'Your progress'}</span>
-          <strong>{progress}%</strong>
-          <div className="program-studio-progress">
-            <i style={{ width: `${progress}%` }} />
-          </div>
-          <p>{nextLesson ? `Next: ${nextLesson.title}` : program.lessonCount ? 'All lessons complete.' : 'Add the first lesson to begin.'}</p>
-        </div>
+        ) : null}
       </section>
 
       {feedback ? <div className={`program-studio-notice ${feedback.tone}`}>{feedback.message}</div> : null}
 
-      <section className="program-detail-layout">
-        <div className="program-detail-main">
-          <div className="program-studio-section-heading">
-            <span>Curriculum</span>
-            <p>{program.description || 'No program description yet.'}</p>
+      <section className="program-builder-grid">
+        <aside className="program-builder-card program-builder-details-card">
+          <div className="program-builder-card-title">
+            <span className="program-builder-title-icon">i</span>
+            <h2>Program Details</h2>
           </div>
 
-          <div className="program-detail-module-list">
-            {program.modules.map((module, index) => (
-              <article key={module.id} className="program-detail-module">
-                <div className="program-detail-module-header">
-                  <span>Module {index + 1}</span>
-                  <strong>{module.title}</strong>
-                  {module.summary ? <p>{module.summary}</p> : null}
+          <input
+            ref={thumbnailInputRef}
+            type="file"
+            accept="image/*"
+            className="program-builder-file-input"
+            onChange={(event) => handleThumbnailFileChange(event.target.files?.[0] ?? null)}
+          />
+
+          <div className="program-builder-thumbnail">
+            <div className="program-builder-thumbnail-preview">
+              {thumbnailPreview ? (
+                <img src={thumbnailPreview} alt="" />
+              ) : (
+                <div
+                  className="program-builder-thumbnail-gradient"
+                  style={{
+                    background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]})`
+                  }}
+                >
+                  <span>{getInitials(program.title)}</span>
                 </div>
-
-                {module.lessons.length ? (
-                  <div className="program-detail-lesson-list">
-                    {module.lessons.map((lesson) => (
-                      <div key={lesson.id} className={`program-detail-lesson${lesson.isCompleted ? ' completed' : ''}`}>
-                        <div className="program-detail-lesson-index">{lesson.isCompleted ? '✓' : lesson.position + 1}</div>
-                        <div className="program-detail-lesson-copy">
-                          <strong>{lesson.title}</strong>
-                          <span>{lesson.summary || getLessonAssetLabel(lesson)}</span>
-                          <small>{getLessonAssetLabel(lesson)}</small>
-                        </div>
-                        {!isCreator && !lesson.isCompleted ? (
-                          <button
-                            type="button"
-                            className="program-detail-complete-button"
-                            onClick={() => handleCompleteLesson(lesson.id)}
-                            disabled={completingLessonId === lesson.id}
-                          >
-                            {completingLessonId === lesson.id ? 'Saving' : 'Complete'}
-                          </button>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="program-detail-empty-module">No lessons in this module yet.</div>
-                )}
-              </article>
-            ))}
+              )}
+            </div>
+            {isCreator ? (
+              <div className="program-builder-thumbnail-actions">
+                <button type="button" onClick={() => thumbnailInputRef.current?.click()}>
+                  Change thumbnail
+                </button>
+                <button type="button" onClick={handleRemoveThumbnail}>
+                  Use gradient
+                </button>
+              </div>
+            ) : null}
           </div>
-        </div>
 
-        <aside className="program-detail-rail">
-          {isCreator ? (
-            <>
-              <section className="program-detail-control-panel">
-                <p>Program overview</p>
-                <label>
-                  Title
-                  <input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} />
-                </label>
-                <label>
-                  Subtitle
-                  <input value={draftSubtitle} onChange={(event) => setDraftSubtitle(event.target.value)} />
-                </label>
-                <label>
-                  Description
-                  <textarea value={draftDescription} onChange={(event) => setDraftDescription(event.target.value)} rows={5} />
-                </label>
-                <button type="button" className="program-studio-primary-button" onClick={handleSaveProgram} disabled={savingProgram}>
-                  {savingProgram ? 'Saving' : 'Save overview'}
-                </button>
-              </section>
+          <label className="program-builder-field">
+            Program Name
+            <input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} disabled={!isCreator} />
+          </label>
 
-              <section className="program-detail-control-panel">
-                <p>Add module</p>
-                <label>
-                  Module title
-                  <input value={moduleTitle} onChange={(event) => setModuleTitle(event.target.value)} placeholder="Foundations" />
-                </label>
-                <label>
-                  Summary
-                  <textarea value={moduleSummary} onChange={(event) => setModuleSummary(event.target.value)} rows={3} />
-                </label>
-                <button type="button" className="program-studio-ghost-button" onClick={handleAddModule} disabled={addingModule}>
-                  {addingModule ? 'Adding' : 'Add module'}
-                </button>
-              </section>
+          <label className="program-builder-field">
+            Subtitle
+            <input value={draftSubtitle} onChange={(event) => setDraftSubtitle(event.target.value)} disabled={!isCreator} />
+          </label>
 
-              <section className="program-detail-control-panel">
-                <p>Add lesson</p>
-                <label>
-                  Module
-                  <select value={selectedModuleId} onChange={(event) => setSelectedModuleId(event.target.value)}>
-                    {program.modules.map((module) => (
-                      <option key={module.id} value={module.id}>
-                        {module.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Lesson title
-                  <input value={lessonTitle} onChange={(event) => setLessonTitle(event.target.value)} placeholder="Lesson title" />
-                </label>
-                <label>
-                  Summary
-                  <textarea value={lessonSummary} onChange={(event) => setLessonSummary(event.target.value)} rows={3} />
-                </label>
-                <label>
-                  Duration
-                  <input value={lessonDuration} onChange={(event) => setLessonDuration(event.target.value)} placeholder="8 min" />
-                </label>
-                <label>
-                  Asset URL
-                  <input value={lessonAssetUrl} onChange={(event) => setLessonAssetUrl(event.target.value)} placeholder="Video or document URL" />
-                </label>
-                <button type="button" className="program-studio-primary-button" onClick={handleAddLesson} disabled={addingLesson}>
-                  {addingLesson ? 'Adding' : 'Add lesson'}
-                </button>
-              </section>
+          <label className="program-builder-field">
+            Description
+            <textarea value={draftDescription} onChange={(event) => setDraftDescription(event.target.value)} rows={6} disabled={!isCreator} />
+          </label>
 
-              <section className="program-detail-control-panel">
-                <p>Learners</p>
-                {program.learners.length ? (
-                  <div className="program-detail-learner-list">
-                    {program.learners.map((learner) => (
-                      <div key={learner.enrollmentId} className="program-detail-learner-row">
-                        <span>{getInitials(learner.displayName)}</span>
-                        <div>
-                          <strong>{learner.displayName}</strong>
-                          <small>
-                            {learner.progressPercent}% complete · enrolled {formatDate(learner.enrolledAt)}
-                          </small>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="program-detail-muted">No learners enrolled yet.</span>
-                )}
-              </section>
-            </>
-          ) : (
-            <section className="program-detail-control-panel">
-              <p>Learning path</p>
-              <strong>{nextLesson ? nextLesson.title : 'You are caught up'}</strong>
-              <span className="program-detail-muted">
-                {nextLesson ? nextLesson.summary || getLessonAssetLabel(nextLesson) : 'Every available lesson has been completed.'}
-              </span>
-            </section>
-          )}
+          <div className="program-builder-detail-divider" />
+
+          <div className="program-builder-duration-row">
+            <span>Estimated Duration</span>
+            <strong>{getProgramDurationSummary(program)}</strong>
+          </div>
+
+          {!isCreator ? (
+            <div className="program-builder-progress-card">
+              <span>Your progress</span>
+              <strong>{progress}%</strong>
+              <div className="program-studio-progress">
+                <i style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          ) : null}
         </aside>
+
+        <section className="program-builder-card program-builder-curriculum-card">
+          <div className="program-builder-curriculum-header">
+            <div className="program-builder-card-title">
+              <span className="program-builder-title-icon grid">#</span>
+              <h2>Modular Curriculum</h2>
+            </div>
+            {isCreator ? (
+              <button type="button" className="program-builder-add-module-button" onClick={() => setShowAddModule((current) => !current)}>
+                <span>+</span>
+                Add Module
+              </button>
+            ) : null}
+          </div>
+
+          {showAddModule && isCreator ? (
+            <div className="program-builder-add-module-panel">
+              <label className="program-builder-field">
+                Module title
+                <input value={moduleTitle} onChange={(event) => setModuleTitle(event.target.value)} placeholder="Strategic foundations" />
+              </label>
+              <label className="program-builder-field">
+                Module summary
+                <textarea value={moduleSummary} onChange={(event) => setModuleSummary(event.target.value)} rows={3} />
+              </label>
+              <div className="program-builder-inline-actions">
+                <button type="button" className="program-builder-secondary-button" onClick={() => setShowAddModule(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="program-builder-primary-button" onClick={handleAddModule} disabled={addingModule}>
+                  {addingModule ? 'Adding' : 'Add Module'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="program-builder-module-list">
+            {program.modules.map((module, moduleIndex) => {
+              const isExpanded = expandedModuleIds.has(module.id);
+              const moduleDraft = moduleDrafts[module.id] ?? {
+                title: module.title,
+                summary: module.summary
+              };
+
+              return (
+                <article key={module.id} className={`program-builder-module-card${isExpanded ? ' expanded' : ''}`}>
+                  <div className="program-builder-module-header">
+                    <span className="program-builder-drag-handle">::</span>
+                    <button
+                      type="button"
+                      className="program-builder-expand-button"
+                      onClick={() =>
+                        setExpandedModuleIds((current) => {
+                          const nextExpanded = new Set(current);
+
+                          if (nextExpanded.has(module.id)) {
+                            nextExpanded.delete(module.id);
+                          } else {
+                            nextExpanded.add(module.id);
+                          }
+
+                          return nextExpanded;
+                        })
+                      }
+                      aria-label={isExpanded ? 'Collapse module' : 'Expand module'}
+                    >
+                      {isExpanded ? 'v' : '>'}
+                    </button>
+                    <div className="program-builder-module-title">
+                      {isCreator ? (
+                        <div className="program-builder-module-title-edit">
+                          <span>Module {moduleIndex + 1}:</span>
+                          <input
+                            value={moduleDraft.title}
+                            onChange={(event) =>
+                              setModuleDrafts((current) => ({
+                                ...current,
+                                [module.id]: {
+                                  ...moduleDraft,
+                                  title: event.target.value
+                                }
+                              }))
+                            }
+                          />
+                        </div>
+                      ) : (
+                        <strong>
+                          Module {moduleIndex + 1}: {module.title}
+                        </strong>
+                      )}
+                      {!isExpanded ? <small>{module.lessonCount} lessons - {getModuleDurationSummary(module)}</small> : null}
+                    </div>
+                    {isCreator ? (
+                      <div className="program-builder-module-actions">
+                        <button type="button" onClick={() => handleMoveModule(module, -1)} disabled={moduleIndex === 0 || movingModuleId === module.id}>
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveModule(module, 1)}
+                          disabled={moduleIndex === program.modules.length - 1 || movingModuleId === module.id}
+                        >
+                          Down
+                        </button>
+                        <button type="button" onClick={() => handleSaveModule(module)} disabled={savingModuleId === module.id}>
+                          {savingModuleId === module.id ? 'Saving' : 'Save'}
+                        </button>
+                        <button type="button" onClick={() => handleDeleteModule(module)} disabled={deletingModuleId === module.id}>
+                          Delete
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {isExpanded ? (
+                    <div className="program-builder-module-body">
+                      {isCreator ? (
+                        <label className="program-builder-field compact">
+                          Module summary
+                          <textarea
+                            value={moduleDraft.summary}
+                            onChange={(event) =>
+                              setModuleDrafts((current) => ({
+                                ...current,
+                                [module.id]: {
+                                  ...moduleDraft,
+                                  summary: event.target.value
+                                }
+                              }))
+                            }
+                            rows={2}
+                            placeholder="What this module helps the learner accomplish."
+                          />
+                        </label>
+                      ) : module.summary ? (
+                        <p className="program-builder-module-summary">{module.summary}</p>
+                      ) : null}
+
+                      <div className="program-builder-lesson-list">
+                        {module.lessons.map((lesson, lessonIndex) => (
+                          <div key={lesson.id} className={`program-builder-lesson-row${lesson.isCompleted ? ' completed' : ''}`}>
+                            <span className="program-builder-lesson-drag">::</span>
+                            <span
+                              className={`program-builder-lesson-icon ${getLessonKind(lesson) === 'Reading' ? 'reading' : 'video'}`}
+                              aria-hidden="true"
+                            />
+                            <div className="program-builder-lesson-copy">
+                              <strong>{lesson.title}</strong>
+                              <small>{getLessonMeta(lesson)}</small>
+                              {lesson.summary ? <p>{lesson.summary}</p> : null}
+                            </div>
+                            {isCreator ? (
+                              <div className="program-builder-lesson-actions">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveLesson(module, lesson, -1)}
+                                  disabled={lessonIndex === 0 || movingLessonId === lesson.id}
+                                >
+                                  Up
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveLesson(module, lesson, 1)}
+                                  disabled={lessonIndex === module.lessons.length - 1 || movingLessonId === lesson.id}
+                                >
+                                  Down
+                                </button>
+                                <button type="button" onClick={() => handleEditLesson(lesson)}>
+                                  Edit
+                                </button>
+                                <button type="button" onClick={() => handleDeleteLesson(lesson)} disabled={deletingLessonId === lesson.id}>
+                                  Delete
+                                </button>
+                              </div>
+                            ) : !lesson.isCompleted ? (
+                              <button
+                                type="button"
+                                className="program-detail-complete-button"
+                                onClick={() => handleCompleteLesson(lesson.id)}
+                                disabled={completingLessonId === lesson.id}
+                              >
+                                {completingLessonId === lesson.id ? 'Saving' : 'Complete'}
+                              </button>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+
+                      {activeLessonComposerModuleId === module.id && isCreator ? (
+                        <div className="program-builder-lesson-composer">
+                          <label className="program-builder-field">
+                            Module
+                            <select value={selectedModuleId} onChange={(event) => setSelectedModuleId(event.target.value)}>
+                              {program.modules.map((nextModule) => (
+                                <option key={nextModule.id} value={nextModule.id}>
+                                  {nextModule.title}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="program-builder-field">
+                            Lesson title
+                            <input value={lessonTitle} onChange={(event) => setLessonTitle(event.target.value)} placeholder="Visionary thinking" />
+                          </label>
+                          <label className="program-builder-field">
+                            Summary
+                            <textarea value={lessonSummary} onChange={(event) => setLessonSummary(event.target.value)} rows={3} />
+                          </label>
+                          <div className="program-builder-two-fields">
+                            <label className="program-builder-field">
+                              Duration
+                              <input value={lessonDuration} onChange={(event) => setLessonDuration(event.target.value)} placeholder="12:45" />
+                            </label>
+                            <label className="program-builder-field">
+                              Asset URL
+                              <input value={lessonAssetUrl} onChange={(event) => setLessonAssetUrl(event.target.value)} placeholder="Video or document URL" />
+                            </label>
+                          </div>
+                          <div className="program-builder-inline-actions">
+                            <button type="button" className="program-builder-secondary-button" onClick={clearLessonComposer}>
+                              Cancel
+                            </button>
+                            <button type="button" className="program-builder-primary-button" onClick={handleSaveLesson} disabled={addingLesson}>
+                              {addingLesson ? 'Saving' : editingLessonId ? 'Save Lesson' : 'Add Lesson'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : isCreator ? (
+                        <button type="button" className="program-builder-add-lesson-row" onClick={() => handleOpenLessonComposer(module.id)}>
+                          + Add Lesson
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+
+          {isCreator && program.learners.length ? (
+            <div className="program-builder-learners">
+              <span>Learners</span>
+              {program.learners.slice(0, 4).map((learner) => (
+                <div key={learner.enrollmentId} className="program-builder-learner-row">
+                  <strong>{learner.displayName}</strong>
+                  <small>
+                    {learner.progressPercent}% complete - enrolled {formatDate(learner.enrolledAt)}
+                  </small>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
       </section>
     </main>
-  );
-}
-
-function MetricPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="program-detail-stat-pill">
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </div>
   );
 }
