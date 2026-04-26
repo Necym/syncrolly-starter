@@ -1,7 +1,7 @@
 'use client';
 
 import type { ProgramSummary } from '@syncrolly/core';
-import { createProgram, listPrograms } from '@syncrolly/data';
+import { createProgram, deleteProgram, listPrograms } from '@syncrolly/data';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getProgramFallbackGradient, truncateProgramText } from '../../lib/programs';
@@ -44,6 +44,7 @@ export default function ProgramStudioPage() {
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
   const [creatingProgram, setCreatingProgram] = useState(false);
+  const [deletingProgramId, setDeletingProgramId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<NoticeState | null>(null);
 
   const loadPrograms = useCallback(async () => {
@@ -109,6 +110,42 @@ export default function ProgramStudioPage() {
       });
     } finally {
       setCreatingProgram(false);
+    }
+  }
+
+  async function handleDeleteProgram(program: ProgramSummary) {
+    if (!supabase || !user || deletingProgramId || role !== 'creator') {
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `Delete "${program.title}"? This removes its modules, lessons, enrollments, and progress.`
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setDeletingProgramId(program.id);
+    setFeedback(null);
+
+    try {
+      await deleteProgram(supabase, {
+        programId: program.id,
+        creatorId: user.id
+      });
+      setPrograms((current) => current.filter((item) => item.id !== program.id));
+      setFeedback({
+        tone: 'success',
+        message: 'Program deleted.'
+      });
+    } catch (error) {
+      setFeedback({
+        tone: 'error',
+        message: getErrorMessage(error, 'Program could not be deleted.')
+      });
+    } finally {
+      setDeletingProgramId(null);
     }
   }
 
@@ -241,7 +278,14 @@ export default function ProgramStudioPage() {
           ) : programs.length ? (
             <div className="program-studio-grid">
               {programs.map((program) => (
-                <ProgramCard key={program.id} program={program} onOpen={() => router.push(`/program/${program.id}`)} />
+                <ProgramCard
+                  key={program.id}
+                  program={program}
+                  canDelete={isCreator}
+                  deleting={deletingProgramId === program.id}
+                  onDelete={() => handleDeleteProgram(program)}
+                  onOpen={() => router.push(`/program/${program.id}`)}
+                />
               ))}
             </div>
           ) : (
@@ -275,44 +319,64 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ProgramCard({ program, onOpen }: { program: ProgramSummary; onOpen: () => void }) {
+function ProgramCard({
+  program,
+  canDelete,
+  deleting,
+  onDelete,
+  onOpen
+}: {
+  program: ProgramSummary;
+  canDelete: boolean;
+  deleting: boolean;
+  onDelete: () => void;
+  onOpen: () => void;
+}) {
   const gradient = getProgramFallbackGradient(program.title);
   const progress = Math.max(0, Math.min(100, program.progressPercent));
 
   return (
-    <button type="button" className="program-studio-card" onClick={onOpen}>
-      <div className="program-studio-card-art">
-        {program.thumbnailUrl ? (
-          <img src={program.thumbnailUrl} alt="" />
-        ) : (
-          <div
-            className="program-studio-card-gradient"
-            style={{
-              background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]})`
-            }}
-          >
-            <span>{getInitials(program.title)}</span>
+    <article className="program-studio-card">
+      {canDelete ? (
+        <button type="button" className="program-studio-card-delete" onClick={onDelete} disabled={deleting}>
+          {deleting ? 'Deleting' : 'Delete'}
+        </button>
+      ) : null}
+
+      <button type="button" className="program-studio-card-open" onClick={onOpen}>
+        <div className="program-studio-card-art">
+          {program.thumbnailUrl ? (
+            <img src={program.thumbnailUrl} alt="" />
+          ) : (
+            <div
+              className="program-studio-card-gradient"
+              style={{
+                background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]})`
+              }}
+            >
+              <span>{getInitials(program.title)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="program-studio-card-copy">
+          <div className="program-studio-card-meta">
+            <span>{program.subtitle || 'Program'}</span>
+            <small>{program.lessonCount} lessons</small>
           </div>
-        )}
-      </div>
-
-      <div className="program-studio-card-copy">
-        <div className="program-studio-card-meta">
-          <span>{program.subtitle || 'Program'}</span>
-          <small>{program.lessonCount} lessons</small>
+          <h2>{program.title}</h2>
+          <p>{truncateProgramText(program.description || program.subtitle || 'No description yet.', 150)}</p>
         </div>
-        <h2>{program.title}</h2>
-        <p>{truncateProgramText(program.description || program.subtitle || 'No description yet.', 150)}</p>
-      </div>
 
-      <div className="program-studio-card-footer">
-        <span>{program.enrolledCount} learners</span>
-        <div className="program-studio-progress">
-          <i style={{ width: `${progress}%` }} />
+        <div className="program-studio-card-footer">
+          <span>{program.enrolledCount} learners</span>
+          <div className="program-studio-progress">
+            <i style={{ width: `${progress}%` }} />
+          </div>
+          <strong>{progress}%</strong>
         </div>
-        <strong>{progress}%</strong>
-      </div>
-    </button>
+      </button>
+    </article>
   );
 }
 

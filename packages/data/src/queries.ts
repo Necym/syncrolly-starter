@@ -2332,6 +2332,22 @@ export async function updateProgram(
   );
 }
 
+export async function deleteProgram(
+  client: SyncrollySupabaseClient,
+  input: {
+    programId: string;
+    creatorId: string;
+  }
+) {
+  const { error } = await client
+    .from('programs')
+    .delete()
+    .eq('id', input.programId)
+    .eq('creator_id', input.creatorId);
+
+  if (error) throw error;
+}
+
 async function getOrCreateDefaultProgramModule(
   client: SyncrollySupabaseClient,
   programId: string

@@ -7069,7 +7069,6 @@ body.syncrolly-body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  text-align: left;
   background:
     linear-gradient(180deg, rgba(34, 42, 61, 0.72), rgba(19, 27, 46, 0.92)),
     var(--color-surface-container-low);
@@ -7086,6 +7085,48 @@ body.syncrolly-body {
   transform: translateY(-3px);
   border-color: rgba(77, 142, 255, 0.36);
   box-shadow: 0 28px 52px rgba(4, 8, 18, 0.34);
+}
+
+.program-studio-card-open {
+  width: 100%;
+  min-height: inherit;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  color: inherit;
+  text-align: left;
+}
+
+.program-studio-card-delete {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  min-height: 32px;
+  padding: 0 11px;
+  color: #ffd8df;
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.26);
+  border-radius: 7px;
+  font-family: var(--font-headline);
+  font-size: 0.75rem;
+  font-weight: 850;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.program-studio-card-delete:hover {
+  transform: translateY(-1px);
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.42);
+}
+
+.program-studio-card-delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
 }
 
 .program-studio-card-art {
