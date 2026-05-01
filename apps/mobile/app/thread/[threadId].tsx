@@ -1344,7 +1344,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    overflow: 'hidden',
+    overflow: 'visible',
     shadowColor: 'rgba(0, 0, 0, 0.28)',
     shadowOpacity: 1,
     shadowRadius: 12,
@@ -1356,7 +1356,8 @@ const styles = StyleSheet.create({
   },
   headerAvatarImage: {
     width: '100%',
-    height: '100%'
+    height: '100%',
+    borderRadius: 21
   },
   headerAvatarText: {
     fontSize: 15,
@@ -1365,13 +1366,15 @@ const styles = StyleSheet.create({
   },
   headerPresenceDot: {
     position: 'absolute',
-    right: 0,
-    bottom: 1,
-    width: 8,
-    height: 8,
+    right: -1,
+    bottom: -1,
+    width: 10,
+    height: 10,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: DM_COLORS.backgroundTop
+    borderColor: DM_COLORS.backgroundTop,
+    zIndex: 3,
+    elevation: 4
   },
   headerCopy: {
     flex: 1,

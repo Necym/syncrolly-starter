@@ -896,7 +896,7 @@ const styles = StyleSheet.create({
     gap: 26
   },
   heroShell: {
-    height: 462,
+    height: 360,
     position: 'relative',
     overflow: 'hidden'
   },
@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    height: 200
+    height: 170
   },
   heroFadeCompact: {
     height: 82
@@ -970,7 +970,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 28,
-    bottom: 28,
+    bottom: 24,
     gap: 6
   },
   heroBodyCompact: {

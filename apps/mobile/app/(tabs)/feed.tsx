@@ -681,13 +681,13 @@ const styles = StyleSheet.create({
     maxWidth: 320
   },
   studioButton: {
-    borderRadius: 999,
+    borderRadius: 16,
     overflow: 'hidden'
   },
   studioButtonInner: {
     minHeight: 38,
     paddingHorizontal: 14,
-    borderRadius: 999,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
   tabChip: {
     minWidth: 92,
     minHeight: 44,
-    borderRadius: 999,
+    borderRadius: 16,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center'
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
     minWidth: 92,
     minHeight: 44,
     paddingHorizontal: 18,
-    borderRadius: 999,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -723,7 +723,7 @@ const styles = StyleSheet.create({
     minWidth: 92,
     minHeight: 44,
     paddingHorizontal: 18,
-    borderRadius: 999,
+    borderRadius: 16,
     backgroundColor: theme.colors.surfaceContainerLow,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
@@ -988,13 +988,13 @@ const styles = StyleSheet.create({
     lineHeight: 22
   },
   inlineStudioButton: {
-    borderRadius: 999,
+    borderRadius: 14,
     overflow: 'hidden'
   },
   inlineStudioButtonInner: {
     minHeight: 34,
     paddingHorizontal: 14,
-    borderRadius: 999,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -1302,6 +1302,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   gradientButtonShell: {
+    borderRadius: 14,
     overflow: 'hidden'
   },
   gradientButtonFill: {

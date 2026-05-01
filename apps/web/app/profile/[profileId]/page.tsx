@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { getEffectiveCreatorPageBlocks } from '../../../lib/profilePageBuilder';
 import { getProfilePageOfferIconLabel } from '../../../lib/profilePageOfferIcons';
 import { useWebSession } from '../../../lib/session';
-import { BottomNav, BrandMark, Icon, getErrorMessage } from '../../ui';
+import { BrandMark, Icon, getErrorMessage } from '../../ui';
 
 function getInitials(name: string): string {
   return (
@@ -44,6 +44,45 @@ function getDmIntakePolicyLabel(value: DmIntakePolicy | undefined, feeUsd?: numb
   return 'Direct message';
 }
 
+function getDmIntakePolicyShortLabel(value: DmIntakePolicy | undefined): string {
+  if (value === 'form') {
+    return 'Form';
+  }
+
+  if (value === 'paid_fee') {
+    return 'Paid';
+  }
+
+  return 'Direct';
+}
+
+function formatProfileHandle(profile: ViewerProfile): string {
+  const base =
+    profile.role === 'creator'
+      ? profile.creatorProfile?.niche?.trim() || profile.displayName
+      : profile.displayName;
+  const slug = base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return `@${slug || 'synced_in'}`;
+}
+
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M18 8.2a2.7 2.7 0 1 0-2.55-3.58A2.7 2.7 0 0 0 18 8.2ZM6 14.7a2.7 2.7 0 1 0 0-5.4 2.7 2.7 0 0 0 0 5.4Zm12 5.1a2.7 2.7 0 1 0 0-5.4 2.7 2.7 0 0 0 0 5.4Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path d="m8.4 11.2 7.2-4.1M8.4 12.8l7.2 4.1" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function CoverPlaceholder() {
   return (
     <div className="public-profile-cover-placeholder" aria-hidden="true">
@@ -56,25 +95,22 @@ function CoverPlaceholder() {
 }
 
 function PostCard({ post }: { post: ProfilePost }) {
+  const hasImage = Boolean(post.imageUrl);
+
   return (
-    <article className="public-post-card">
-      <div className="public-post-header">
-        <div className="public-post-avatar-frame">
-          {post.authorAvatarUrl ? (
-            <img src={post.authorAvatarUrl} alt={post.authorName} className="public-post-avatar" />
-          ) : (
-            <span className="public-post-avatar-fallback">{getInitials(post.authorName)}</span>
-          )}
+    <article className={`public-post-card public-post-editorial-card${hasImage ? ' has-image' : ' is-text'}`}>
+      {post.imageUrl ? (
+        <div className="public-post-image-frame">
+          <img src={post.imageUrl} alt="" className="public-post-image" />
         </div>
+      ) : (
+        <blockquote className="public-post-quote">{post.body || 'A new public update is ready to view.'}</blockquote>
+      )}
 
-        <div className="public-post-meta">
-          <h3>{post.authorName}</h3>
-          <p>{post.relativeTime}</p>
-        </div>
+      <div className="public-post-editorial-copy">
+        <p className="public-profile-section-label">{post.relativeTime}</p>
+        {post.body && hasImage ? <p className="public-post-body">{post.body}</p> : null}
       </div>
-
-      {post.body ? <p className="public-post-body">{post.body}</p> : null}
-      {post.imageUrl ? <img src={post.imageUrl} alt="" className="public-post-image" /> : null}
     </article>
   );
 }
@@ -277,6 +313,39 @@ export default function PublicProfilePage() {
     router.push(`/profile/${profile.id}/form`);
   }
 
+  async function handleShareProfile() {
+    if (!profile || typeof window === 'undefined') {
+      return;
+    }
+
+    const shareUrl = window.location.href;
+    const shareTitle = `${profile.displayName} on Synced-In`;
+    const shareText = profile.bio.trim() || 'View this Synced-In creator profile.';
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl
+        });
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        setFeedback('Profile link copied.');
+        return;
+      }
+
+      setFeedback(shareUrl);
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        setFeedback('Could not share this profile right now.');
+      }
+    }
+  }
+
   function handlePrimaryAction() {
     if (!profile || profile.role !== 'creator') {
       void handleStartConversation();
@@ -438,6 +507,7 @@ export default function PublicProfilePage() {
       ? profile.creatorProfile?.headline?.trim() || 'Creator on Synced-In'
       : 'Supporter on Synced-In';
   const resolvedBio = profile.bio.trim() || 'This user has not added a bio yet.';
+  const profileHandle = formatProfileHandle(profile);
   const showAvatarImage = Boolean(profile.avatarUrl && !avatarFailed);
   const creatorPageBlocks =
     profile.role === 'creator'
@@ -446,40 +516,54 @@ export default function PublicProfilePage() {
   const hasMediaPostsBlock = creatorPageBlocks.some((block) => block.type === 'media_posts');
 
   return (
-    <div className="thread-page">
-      <header className="public-route-header-shell">
-        <div className="public-route-header">
-          <div className="public-route-header-left">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
-            </button>
+    <div className="thread-page public-profile-editorial-page">
+      <header className="public-profile-nav-shell">
+        <div className="public-profile-nav">
+          <button type="button" className="public-profile-nav-brand" onClick={() => router.push('/')} aria-label="Go to Synced-In home">
+            <BrandMark />
+            <span>Synced-In</span>
+          </button>
 
-            <div className="brand brand-wordmark">
-              <BrandMark />
+          <nav className="public-profile-nav-links" aria-label="Profile navigation">
+            <button type="button" className="active">
+              Profile
+            </button>
+            <button type="button">Network</button>
+            <button type="button">Discover</button>
+          </nav>
+
+          <div className="public-profile-nav-actions">
+            <button type="button" aria-label="Search">
+              <Icon name="search" />
+            </button>
+            <button type="button" aria-label="Notifications">
+              <Icon name="notifications" />
+            </button>
+            <div className="public-profile-nav-avatar" aria-hidden="true">
+              {showAvatarImage ? (
+                <img src={profile.avatarUrl} alt="" onError={() => setAvatarFailed(true)} />
+              ) : (
+                <span>{getInitials(profile.displayName)}</span>
+              )}
             </div>
           </div>
-
-          <button type="button" className="public-route-link" onClick={() => router.push('/')}>
-            Back to inbox
-          </button>
         </div>
       </header>
 
-      <main className="public-profile-main">
-        <div className="public-profile-shell">
-          <section className="public-profile-hero">
-            <div className="public-profile-cover">
+      <main className="public-profile-main public-profile-editorial-main">
+        <div className="public-profile-shell public-profile-editorial-shell">
+          <section className="public-profile-hero public-profile-editorial-hero">
+            <div className="public-profile-cover public-profile-editorial-cover">
               {profile.coverImageUrl ? (
                 <img src={profile.coverImageUrl} alt={profile.displayName} className="public-profile-cover-image" />
               ) : (
                 <CoverPlaceholder />
               )}
-              <div className="public-profile-cover-fade" />
             </div>
 
-            <div className="public-profile-hero-body">
-              <div className="public-profile-avatar-row">
-                <div className="public-profile-avatar-frame">
+            <div className="public-profile-editorial-intro">
+              <div className="public-profile-editorial-identity">
+                <div className="public-profile-avatar-frame public-profile-editorial-avatar">
                   {showAvatarImage ? (
                     <img
                       src={profile.avatarUrl}
@@ -491,38 +575,17 @@ export default function PublicProfilePage() {
                     <span className="public-profile-avatar-fallback">{getInitials(profile.displayName)}</span>
                   )}
                 </div>
-              </div>
 
-              <div className="public-profile-identity">
-                <p className="public-profile-kicker">{profileTag}</p>
-                <h1>{profile.displayName}</h1>
-                <p className="public-profile-subtitle">{subtitle}</p>
-              </div>
-
-              <p className="public-profile-bio">{resolvedBio}</p>
-
-              <div className="public-profile-stats">
-                <div className="public-profile-stat-card">
-                  <span className="public-profile-stat-value">{posts.length}</span>
-                  <span className="public-profile-stat-label">Posts</span>
-                </div>
-                <div className="public-profile-stat-card">
-                  <span className="public-profile-stat-value">
-                    {profile.role === 'creator' ? getDmAccessLabel(profile.creatorProfile?.dmAccess) : 'Member'}
-                  </span>
-                  <span className="public-profile-stat-label">{profile.role === 'creator' ? 'DM access' : 'Profile'}</span>
-                </div>
-                <div className="public-profile-stat-card">
-                  <span className="public-profile-stat-value">
-                    {profile.role === 'creator'
-                      ? getDmIntakePolicyLabel(profile.creatorProfile?.dmIntakePolicy, profile.creatorProfile?.dmFeeUsd)
-                      : profile.presence}
-                  </span>
-                  <span className="public-profile-stat-label">{profile.role === 'creator' ? 'Intake' : 'Presence'}</span>
+                <div className="public-profile-editorial-copy">
+                  <p className="public-profile-section-label public-profile-role-label">{profileTag}</p>
+                  <h1>{profile.displayName}</h1>
+                  <p className="public-profile-kicker public-profile-handle">{profileHandle}</p>
+                  <p className="public-profile-subtitle">{subtitle}</p>
+                  <p className="public-profile-bio public-profile-editorial-bio">{resolvedBio}</p>
                 </div>
               </div>
 
-              <div className="public-profile-action-row">
+              <div className="public-profile-action-row public-profile-editorial-actions">
                 <button
                   type="button"
                   className="public-profile-primary-button"
@@ -535,17 +598,48 @@ export default function PublicProfilePage() {
 
                 {showSecondaryFormButton ? (
                   <button type="button" className="public-profile-secondary-button" onClick={handleOpenInquiryForm}>
-                    Fill form instead
+                    Form
                   </button>
                 ) : null}
+
+                <button type="button" className="public-profile-share-button" onClick={handleShareProfile} aria-label="Share profile">
+                  <ShareIcon />
+                </button>
+              </div>
+            </div>
+
+            <div className="public-profile-stats public-profile-editorial-stats">
+              <div className="public-profile-stat-card">
+                <span className="public-profile-stat-value">{posts.length}</span>
+                <span className="public-profile-stat-label">Posts</span>
+              </div>
+              <div className="public-profile-stat-card">
+                <span className="public-profile-stat-value">
+                  {profile.role === 'creator' ? getDmAccessLabel(profile.creatorProfile?.dmAccess) : 'Member'}
+                </span>
+                <span className="public-profile-stat-label">{profile.role === 'creator' ? 'Message access' : 'Profile'}</span>
+              </div>
+              <div className="public-profile-stat-card">
+                <span className="public-profile-stat-value">
+                  {profile.role === 'creator' ? getDmIntakePolicyShortLabel(profile.creatorProfile?.dmIntakePolicy) : profile.presence}
+                </span>
+                <span className="public-profile-stat-label">{profile.role === 'creator' ? 'Intake' : 'Presence'}</span>
               </div>
             </div>
           </section>
 
           {feedback ? <p className="feedback-inline public-profile-feedback">{feedback}</p> : null}
 
+          <div className="public-profile-tabs" role="tablist" aria-label="Profile sections">
+            <button type="button" className="active">
+              Portfolio
+            </button>
+            <button type="button">Articles</button>
+            <button type="button">Mentions</button>
+          </div>
+
           {creatorPageBlocks.length ? (
-            <section className="public-profile-block-stack">
+            <section className="public-profile-block-stack public-profile-editorial-blocks">
               {creatorPageBlocks.map((block) => (
                 <PublicProfileBlock
                   key={block.id}
@@ -558,59 +652,40 @@ export default function PublicProfilePage() {
             </section>
           ) : null}
 
-          <section className="public-profile-grid">
-            <div className="public-profile-side-stack">
-              <article className="public-profile-detail-card">
-                <span className="public-profile-section-label">Profile</span>
-                <div className="public-profile-detail-list">
-                  <p>Role: {profile.role === 'creator' ? 'Creator' : 'Supporter'}</p>
-                  <p>Presence: {profile.presence}</p>
-                  {profile.role === 'creator' ? (
-                    <>
-                      <p>Message access: {getDmAccessLabel(profile.creatorProfile?.dmAccess)}</p>
-                      <p>
-                        DM policy:{' '}
-                        {getDmIntakePolicyLabel(profile.creatorProfile?.dmIntakePolicy, profile.creatorProfile?.dmFeeUsd)}
-                      </p>
-                    </>
-                  ) : null}
-                </div>
-              </article>
-
-              {profile.role === 'creator' && profile.creatorProfile ? (
-                <article className="public-profile-detail-card">
-                  <span className="public-profile-section-label">Creator Focus</span>
-                  <p className="public-profile-section-body">
-                    {profile.creatorProfile.niche || profile.creatorProfile.headline || 'No creator focus added yet.'}
-                  </p>
-                </article>
-              ) : null}
+          <section className="public-profile-posts public-profile-editorial-posts">
+            <div className="public-profile-posts-header">
+              <span className="public-profile-section-label">Portfolio</span>
+              <h2>{hasMediaPostsBlock ? 'More from this creator' : 'Recent updates'}</h2>
             </div>
 
-            <section className="public-profile-posts">
-              <div className="public-profile-posts-header">
-                <span className="public-profile-section-label">Latest Posts</span>
-                <h2>{hasMediaPostsBlock ? 'More updates' : 'Recent updates'}</h2>
+            {posts.length ? (
+              <div className="public-profile-post-list">
+                {posts.map((post) => (
+                  <PostCard key={post.id} post={post} />
+                ))}
               </div>
-
-              {posts.length ? (
-                <div className="public-profile-post-list">
-                  {posts.map((post) => (
-                    <PostCard key={post.id} post={post} />
-                  ))}
-                </div>
-              ) : (
-                <article className="public-profile-empty-posts">
-                  <h3>No posts yet</h3>
-                  <p>This profile has not shared any public updates yet.</p>
-                </article>
-              )}
-            </section>
+            ) : (
+              <article className="public-profile-empty-posts">
+                <h3>No posts yet</h3>
+                <p>This profile has not shared any public updates yet.</p>
+              </article>
+            )}
           </section>
         </div>
       </main>
 
-      <BottomNav activeKey="inbox" />
+      <footer className="public-profile-footer">
+        <div>
+          <BrandMark />
+          <strong>Synced-In</strong>
+        </div>
+        <nav aria-label="Social links">
+          <span>Instagram</span>
+          <span>LinkedIn</span>
+          <span>Twitter</span>
+        </nav>
+        <p>Creator profile powered by Synced-In.</p>
+      </footer>
     </div>
   );
 }

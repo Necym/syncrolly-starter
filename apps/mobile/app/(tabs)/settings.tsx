@@ -23,7 +23,7 @@ import {
 } from '@syncrolly/data';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -68,6 +68,38 @@ type OfferIconPickerTarget = {
   blockId: string;
   itemId: string;
 } | null;
+
+const PROFILE_BLOCK_OPTIONS = [
+  {
+    type: 'video',
+    label: 'Video',
+    description: 'Intro video, thumbnail, and short context.',
+    icon: 'play-circle-outline'
+  },
+  {
+    type: 'offers',
+    label: 'Offers',
+    description: 'Services, access, mentorship, or packages.',
+    icon: 'grid-outline'
+  },
+  {
+    type: 'cta',
+    label: 'CTA',
+    description: 'A focused button for DMs, forms, calls, or links.',
+    icon: 'arrow-forward-circle-outline'
+  },
+  {
+    type: 'media_posts',
+    label: 'Media posts',
+    description: 'A timeline for photos, updates, and wins.',
+    icon: 'images-outline'
+  }
+] as const satisfies Array<{
+  type: CreatorProfilePageBlock['type'];
+  label: string;
+  description: string;
+  icon: ComponentProps<typeof Ionicons>['name'];
+}>;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -292,6 +324,7 @@ export default function ProfileScreen() {
   const [dmIntakePolicy, setDmIntakePolicy] = useState<DmIntakePolicy>('direct_message');
   const [dmFeeUsd, setDmFeeUsd] = useState('25');
   const [pageBlocks, setPageBlocks] = useState<CreatorProfilePageBlock[]>([]);
+  const [showBlockOptions, setShowBlockOptions] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [editingBio, setEditingBio] = useState(false);
 
@@ -440,6 +473,7 @@ export default function ProfileScreen() {
             : createCtaBlock();
 
     setPageBlocks((current) => [...current, nextBlock]);
+    setShowBlockOptions(false);
   }
 
   function updatePageBlock(blockId: string, updater: (block: CreatorProfilePageBlock) => CreatorProfilePageBlock) {
@@ -1264,25 +1298,6 @@ export default function ProfileScreen() {
               <Ionicons name="arrow-forward" size={18} color={theme.colors.textSecondary} />
             </Pressable>
 
-            <View style={styles.builderAddRow}>
-              <GradientButton fullWidth={false} style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('video')}>
-                <Ionicons name="play-circle-outline" size={16} color="#ffffff" />
-                <Text style={styles.builderAddButtonText}>Video</Text>
-              </GradientButton>
-              <GradientButton fullWidth={false} style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('offers')}>
-                <Ionicons name="grid-outline" size={16} color="#ffffff" />
-                <Text style={styles.builderAddButtonText}>Offers</Text>
-              </GradientButton>
-              <GradientButton fullWidth={false} style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('cta')}>
-                <Ionicons name="arrow-forward-circle-outline" size={16} color="#ffffff" />
-                <Text style={styles.builderAddButtonText}>CTA</Text>
-              </GradientButton>
-              <GradientButton fullWidth={false} style={styles.builderAddButton} contentStyle={styles.builderAddButtonInner} onPress={() => addPageBlock('media_posts')}>
-                <Ionicons name="images-outline" size={16} color="#ffffff" />
-                <Text style={styles.builderAddButtonText}>Media posts</Text>
-              </GradientButton>
-            </View>
-
             <View style={styles.builderBlockList}>
               {pageBlocks.map((block, index) => {
                 return (
@@ -1686,6 +1701,45 @@ export default function ProfileScreen() {
                   </View>
                 );
               })}
+
+              <Pressable
+                accessibilityRole="button"
+                style={styles.builderAddBlockPlaceholder}
+                onPress={() => setShowBlockOptions((current) => !current)}
+              >
+                <View style={styles.builderAddBlockIcon}>
+                  <Ionicons name={showBlockOptions ? 'close' : 'add'} size={18} color={theme.colors.textPrimary} />
+                </View>
+                <View style={styles.builderAddBlockCopy}>
+                  <Text style={styles.builderAddBlockTitle}>Add block</Text>
+                  <Text style={styles.builderAddBlockBody}>Insert another section into your public profile.</Text>
+                </View>
+                <Ionicons
+                  name={showBlockOptions ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={theme.colors.textMuted}
+                />
+              </Pressable>
+
+              {showBlockOptions ? (
+                <View style={styles.builderBlockOptionGrid}>
+                  {PROFILE_BLOCK_OPTIONS.map((option) => (
+                    <Pressable
+                      key={option.type}
+                      style={styles.builderBlockOption}
+                      onPress={() => addPageBlock(option.type)}
+                    >
+                      <View style={styles.builderBlockOptionIcon}>
+                        <Ionicons name={option.icon} size={17} color={theme.colors.textPrimary} />
+                      </View>
+                      <View style={styles.builderBlockOptionCopy}>
+                        <Text style={styles.builderBlockOptionTitle}>{option.label}</Text>
+                        <Text style={styles.builderBlockOptionBody}>{option.description}</Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
             </View>
           </GhostCard>
         ) : null}
@@ -2280,37 +2334,88 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18
   },
-  builderAddRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10
-  },
   builderDragHint: {
     color: theme.colors.textMuted,
     fontSize: 12,
     lineHeight: 18
   },
-  builderAddButton: {
-    minHeight: 36,
-    borderRadius: 14,
-    overflow: 'hidden',
-    alignSelf: 'flex-start'
+  builderBlockList: {
+    minHeight: 10,
+    gap: 12
   },
-  builderAddButtonInner: {
-    minHeight: 36,
-    paddingHorizontal: 10,
+  builderAddBlockPlaceholder: {
+    marginHorizontal: 8,
+    minHeight: 72,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(148, 163, 184, 0.34)',
+    backgroundColor: 'rgba(19, 27, 46, 0.42)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6
+    gap: 12
   },
-  builderAddButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
+  builderAddBlockIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  builderAddBlockCopy: {
+    flex: 1,
+    gap: 3
+  },
+  builderAddBlockTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 15,
     fontWeight: '800'
   },
-  builderBlockList: {
-    minHeight: 10
+  builderAddBlockBody: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17
+  },
+  builderBlockOptionGrid: {
+    marginHorizontal: 8,
+    gap: 8
+  },
+  builderBlockOption: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineSoft,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  builderBlockOptionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 14,
+    backgroundColor: theme.colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  builderBlockOptionCopy: {
+    flex: 1,
+    gap: 2
+  },
+  builderBlockOptionTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '800'
+  },
+  builderBlockOptionBody: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17
   },
   builderDragListContent: {
     paddingBottom: 2
