@@ -1,48 +1,26 @@
 'use client';
 
-import { type CreatorProfileCtaBlock, type CreatorProfilePageBlock, type DmIntakePolicy, type ProfilePost, type ViewerProfile } from '@syncrolly/core';
+import { type CreatorProfileOfferItem, type CreatorProfilePageBlock, type ProfilePost, type ViewerProfile } from '@syncrolly/core';
 import { createDirectConversation, getPublicProfile, listProfilePosts } from '@syncrolly/data';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getEffectiveCreatorPageBlocks } from '../../../lib/profilePageBuilder';
-import { getProfilePageOfferIconLabel } from '../../../lib/profilePageOfferIcons';
 import { useWebSession } from '../../../lib/session';
-import { BrandMark, Icon, getErrorMessage } from '../../ui';
+import { getErrorMessage } from '../../ui';
 
-function getInitials(name: string): string {
-  return (
-    name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join('') || 'S'
-  );
-}
-
-function getDmAccessLabel(value: 'free' | 'subscriber_only' | 'paid_only' | undefined): string {
-  if (value === 'free') {
-    return 'Everyone';
-  }
-
-  if (value === 'subscriber_only') {
-    return 'Subscribers';
-  }
-
-  return 'Paid only';
-}
-
-function getDmIntakePolicyShortLabel(value: DmIntakePolicy | undefined): string {
-  if (value === 'form') {
-    return 'Form';
-  }
-
-  if (value === 'paid_fee') {
-    return 'Paid';
-  }
-
-  return 'Direct';
-}
+const HERO_BACKGROUND =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuBuPVYyWYZYvBzUblD0mlmy50TQIxMRVuzihsonWvFaUqepoC-Qefoy-HDZ01Av0BmBcLIT5kagzIMMIIwsyALP-3-KwH3SEdjyY952VpVbFDBikP5wQWEZrHTowi_2ukZb8kNbqK4ty2kwp7KBppgf-ohmB3xbwYfHzJMusItPfRG1j0RLHuiGpoKTiseRem5P0SX-HpajsX51hHV52jQYCQeL50WGKyWyKXJKe2dn1PRqbdCGXgMvc0hfmj1uGwE_ITatrHTLSwet';
+const FALLBACK_AVATAR =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuAR90Injhiln6FyNNzNfn1uOJbbP6hmJiGuK-Lfn4S4fU9e_LHENyi_b8_sbdZ0yRSr0lUd9JuPVHvsmKyc-OwJmW2HgvjjuR7SBrpPeIIB3B9R8qj1G6YsJ8oIZgR3VMPeXO700D9RifS6UlpAd2sdcbr62-_A-2xRltOmgjcE5q6Ahq340b98MBPP1GCqHrZWexb0SBGrMGuOqaUdba-H6F_G9nn7bliuHSCaYacawEO-zYzafV_Tk428qCeroXwrFgHwhDWpHvbN';
+const VIDEO_THUMBNAIL =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuDdKX6TJolxkWNrHt8IZgn7c22t7bmFwnglLdnZpmWWKlviHtifsXPK0CDuBJtj_5SUc4XNEKTBI0C3ohWx_r0rJiKB3Q0GR1S0R9g4TULnbhmq6N6Gk4_DJxjiyuWEK2FSFkqoqxfrYY0TgffaDw35wr8DS75rv0eR_sXOezKjgjH7MmcboNfORNigw6U7gCaIcvs65GHOb28GzZ8W_g11SSLlbkJ1IyVoNePj01tBDfG0TVAc7_JvozURpY_0iDcsPXvYUvcLz25H';
+const OFFER_IMAGES = [
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuCWiu8uglbJ7CIeNVQc2-XkRP2_agNnWsYBXuspSPE_yLz9A7pWxjHdj-z9-Q4ZJvheFcw9cayfnPOjO3JwLXuXSP6GkeNi2245IHnbyCBjibdXShG6g43-zu3TDbdcLFQL5ZrcoPv831X09BZrMkdvFN1FIHkZzjbRB3gisO7YGL5-u5s51h_YKV168i0CZre2nyb8kl3Bm9AYPfWXTFyy-iYeWzGwx3yPvK0UF3I1arpglWpfW2m4FiweYkFaO61IULENUOFbWrPr',
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuB2IgsXpPZ_dukIW0q235jEqnOJzK0Wnrh4jsefmgwkwL7DzR4b32B3KnzPcG1G7xtbOmSJdkJJ1ZPrsc1VG0y45sokp8ZxeefwQTReM-67Mz4jWzL2-TTUHPQ2W7-IqKDQJNIkqgZnDOpqPxb-_LiAbeCiAO4YEm6HlgNGMlLQx0ycxezkxg4PKsYZ-ACq9zhg9E5t00syjdO2ifIvYaTT1O0rFs6jT_ECvJK6ZUtSvYd26RwU7f02VI0YiEDeZhJYbTRvgOwH4bTn',
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuAMY-caS19ZOxe2mkcHLVtiJ-CqxZzzpTtFJ36pFgTwcfHLfy7pz9erBklFBjsDKCT3dzmyA3x4OJzBXwDqtRam8LCV8DEjqXF_vTQfgQAxHhCZTsW5FaV2K_Itmj1FDZKvj16X2gzZgaSeWE5v3Lb5WP9NTuRRjN7Ro6ByCkUqSmXtFfzNLB-8oEmP_NFKJrDzpcGQGuHsyX2NIzIOG5FbFxKS6v8y3aiNY2CP4RDLcQVpUrLfKIKgIPjvpaHr6xmebpmVyxSVsW9i'
+];
+const POST_PREVIEW_IMAGE =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuDIlvi04lmxgNEcG9mS7njFjCEYjjMzUr6eFe4jL1hhw8iq0q2oIHarqUEr11oTSf0chSun9_ovUPc32yGL9BwsXtoerMvmVnCDfAQAO5kEbCLAEdLQAcDJ4XoP_8Fq_LIN6-RlPu6oU6ZtjlL3M4GqPi9wsoFdRqqwyOLC-ZA8wwpi4v0MXT-9p7wxYmGKdZni3UTPVbh8V5r7sudGXvhGS1vn8mCgmAuMK9gi4_Y1MtTcWb0oBaDG8BrMjKVu-7mv_mQSgcFpSRaT';
 
 function formatProfileHandle(profile: ViewerProfile): string {
   const base =
@@ -51,140 +29,140 @@ function formatProfileHandle(profile: ViewerProfile): string {
       : profile.displayName;
   const slug = base
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/[^a-z0-9]+/g, '')
     .replace(/^_+|_+$/g, '');
 
-  return `@${slug || 'synced_in'}`;
+  return `@${slug || 'syncedin'}`;
 }
 
 function formatHandleFromText(value: string): string {
   const slug = value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/[^a-z0-9]+/g, '')
     .replace(/^_+|_+$/g, '');
 
-  return `@${slug || 'synced_in'}`;
+  return `@${slug || 'syncedin'}`;
 }
 
-function ShareIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M18 8.2a2.7 2.7 0 1 0-2.55-3.58A2.7 2.7 0 0 0 18 8.2ZM6 14.7a2.7 2.7 0 1 0 0-5.4 2.7 2.7 0 0 0 0 5.4Zm12 5.1a2.7 2.7 0 1 0 0-5.4 2.7 2.7 0 0 0 0 5.4Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      />
-      <path d="m8.4 11.2 7.2-4.1M8.4 12.8l7.2 4.1" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
+function getOfferIconName(icon: CreatorProfileOfferItem['icon']): string {
+  switch (icon) {
+    case 'call-outline':
+      return 'architecture';
+    case 'trending-up-outline':
+      return 'timeline';
+    case 'people-outline':
+      return 'groups';
+    case 'school-outline':
+      return 'menu_book';
+    case 'desktop-outline':
+      return 'shield_lock';
+    case 'chatbubble-ellipses-outline':
+      return 'forum';
+    case 'videocam-outline':
+      return 'play_circle';
+    case 'rocket-outline':
+      return 'rocket_launch';
+    default:
+      return 'auto_awesome';
+  }
 }
 
-function CoverPlaceholder() {
+function ProfileTopBar({ scrolled }: { scrolled: boolean }) {
   return (
-    <div className="public-profile-cover-placeholder" aria-hidden="true">
-      <div className="public-profile-cover-glow" />
-      <div className="public-profile-cover-orb" />
-      <div className="public-profile-cover-rim" />
-      <div className="public-profile-cover-band" />
-    </div>
-  );
-}
+    <nav className={`welcome-nav aura-profile-topbar${scrolled ? ' aura-profile-topbar-scrolled' : ''}`}>
+      <div className="welcome-nav-inner">
+        <a className="welcome-brand" href="/" aria-label="Synced-In home">
+          <img src="/synced-in-logo.png" alt="" className="welcome-brand-logo" aria-hidden="true" />
+          <span>Synced-In</span>
+        </a>
 
-function PostCard({ post }: { post: ProfilePost }) {
-  return (
-    <article className="atelier-post-card">
-      <div className="atelier-post-avatar">
-        {post.authorAvatarUrl ? (
-          <img src={post.authorAvatarUrl} alt={post.authorName} />
-        ) : (
-          <span>{getInitials(post.authorName)}</span>
-        )}
-      </div>
-
-      <div className="atelier-post-copy">
-        <div className="atelier-post-meta">
-          <strong>{post.authorName}</strong>
-          <span>{formatHandleFromText(post.authorName)}</span>
-          <span>{post.relativeTime}</span>
+        <div className="welcome-nav-links" aria-label="Profile page navigation">
+          <a href="/#solutions">Solutions</a>
+          <a href="/#platform">Platform</a>
+          <a href="/#pricing">Pricing</a>
+          <a href="/#about">About</a>
         </div>
-        {post.body ? <p>{post.body}</p> : null}
-        {post.imageUrl ? <img src={post.imageUrl} alt="" className="atelier-post-media" /> : null}
+
+        <div className="welcome-nav-actions">
+          <a className="welcome-login-button" href="/">
+            Login
+          </a>
+          <a className="welcome-small-cta" href="/">
+            Get Started
+          </a>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+function ServiceCard({ item, index }: { item: CreatorProfileOfferItem; index: number }) {
+  return (
+    <article className={`aura-glass-panel aura-service-card aura-hover-lift aura-reveal aura-delay-${index + 1}`}>
+      {index === 1 ? <div className="aura-card-accent" /> : null}
+      <div className="aura-service-image">
+        <div />
+        <img src={OFFER_IMAGES[index % OFFER_IMAGES.length]} alt="" />
+      </div>
+      <div className="aura-service-body">
+        <div className="aura-service-icon">
+          <span className="material-symbols-outlined">{getOfferIconName(item.icon)}</span>
+        </div>
+        <h3>{item.title}</h3>
+        <p>{item.description}</p>
+        <a href="#aura-updates">
+          Explore Offering
+          <span className="material-symbols-outlined">arrow_forward</span>
+        </a>
       </div>
     </article>
   );
 }
 
-function AtelierVideoBlock({ block }: { block?: Extract<CreatorProfilePageBlock, { type: 'video' }> }) {
+function UpdateCard({ post, index, profile }: { post: ProfilePost; index: number; profile: ViewerProfile }) {
+  const avatarUrl = post.authorAvatarUrl || profile.avatarUrl || FALLBACK_AVATAR;
+  const previewImage = post.imageUrl || (index === 1 ? POST_PREVIEW_IMAGE : undefined);
+
   return (
-    <section className="atelier-video-section atelier-reveal">
-      <div className="atelier-video-frame">
-        {block?.videoUrl ? (
-          <video controls poster={block.thumbnailUrl} src={block.videoUrl} />
-        ) : block?.thumbnailUrl ? (
-          <img src={block.thumbnailUrl} alt="" />
-        ) : (
-          <div className="atelier-video-placeholder">
-            <span>Video introduction</span>
+    <article className="aura-glass-panel aura-update-card aura-hover-lift">
+      <div className="aura-update-row">
+        <img src={avatarUrl} alt={post.authorName} />
+        <div className="aura-update-content">
+          <div className="aura-update-meta">
+            <strong>{post.authorName}</strong>
+            <span className="material-symbols-outlined aura-verified">verified</span>
+            <span>{formatHandleFromText(post.authorName)} · {post.relativeTime}</span>
           </div>
-        )}
-      </div>
-    </section>
-  );
-}
 
-function AtelierOfferings({ block }: { block?: Extract<CreatorProfilePageBlock, { type: 'offers' }> }) {
-  if (!block) {
-    return null;
-  }
+          {post.body ? <p>{post.body}</p> : null}
 
-  return (
-    <section className="atelier-offerings-section">
-      <div className="atelier-section-heading atelier-reveal">
-        <h2>{block.title || 'Select Offerings'}</h2>
-        {block.eyebrow ? <p>{block.eyebrow}</p> : null}
-      </div>
+          {previewImage ? (
+            <div className="aura-link-preview">
+              <img src={previewImage} alt="" />
+              <div>
+                <h4>{index === 1 ? 'The Enterprise AI Integration Framework (2024)' : 'Latest creator update'}</h4>
+                <p>{index === 1 ? 'A comprehensive guide to deploying AI in zero-trust corporate environments.' : 'A new visual update from this creator.'}</p>
+              </div>
+            </div>
+          ) : null}
 
-      <div className="atelier-offering-grid">
-        {block.items.slice(0, 3).map((item, index) => (
-          <article key={item.id} className="atelier-offering-card atelier-reveal" style={{ animationDelay: `${100 + index * 100}ms` }}>
-            <div className="atelier-offering-icon">{getProfilePageOfferIconLabel(item.icon)}</div>
-            <h3>{item.title}</h3>
-            <p>{item.description}</p>
-            <span>{index === 0 ? 'Explore details' : index === 1 ? 'View case studies' : 'Join waitlist'} {'->'}</span>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function AtelierCta({
-  block,
-  onPress,
-  loading
-}: {
-  block?: Extract<CreatorProfilePageBlock, { type: 'cta' }>;
-  onPress: (block: CreatorProfileCtaBlock) => void;
-  loading: boolean;
-}) {
-  if (!block) {
-    return null;
-  }
-
-  return (
-    <section className="atelier-cta-section">
-      <div className="atelier-cta-card atelier-reveal">
-        <div>
-          <span>Next step</span>
-          <h2>{block.title || 'Ready to elevate your presence?'}</h2>
-          {block.description ? <p>{block.description}</p> : null}
+          <div className="aura-update-actions">
+            <span>
+              <span className="material-symbols-outlined">chat_bubble</span>
+              0
+            </span>
+            <span>
+              <span className="material-symbols-outlined">repeat</span>
+              0
+            </span>
+            <span>
+              <span className="material-symbols-outlined">favorite</span>
+              {post.likeCount}
+            </span>
+          </div>
         </div>
-        <button type="button" onClick={() => onPress(block)} disabled={loading}>
-          {loading ? 'Opening...' : block.buttonLabel || 'Apply Now'}
-        </button>
       </div>
-    </section>
+    </article>
   );
 }
 
@@ -199,10 +177,44 @@ export default function PublicProfilePage() {
   const [startingConversation, setStartingConversation] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [topbarScrolled, setTopbarScrolled] = useState(false);
 
   useEffect(() => {
     setAvatarFailed(false);
   }, [profile?.avatarUrl]);
+
+  useEffect(() => {
+    function updateTopbar() {
+      setTopbarScrolled(window.scrollY > 50);
+    }
+
+    updateTopbar();
+    window.addEventListener('scroll', updateTopbar, { passive: true });
+    return () => window.removeEventListener('scroll', updateTopbar);
+  }, []);
+
+  useEffect(() => {
+    const revealNodes = Array.from(document.querySelectorAll<HTMLElement>('.aura-reveal'));
+
+    if (!revealNodes.length) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+          }
+        });
+      },
+      { rootMargin: '0px 0px -100px' }
+    );
+
+    revealNodes.forEach((node) => observer.observe(node));
+
+    return () => observer.disconnect();
+  }, [profile?.id, posts.length]);
 
   useEffect(() => {
     if (!supabase || !user || !resolvedProfileId) {
@@ -290,39 +302,6 @@ export default function PublicProfilePage() {
     router.push(`/profile/${profile.id}/form`);
   }
 
-  async function handleShareProfile() {
-    if (!profile || typeof window === 'undefined') {
-      return;
-    }
-
-    const shareUrl = window.location.href;
-    const shareTitle = `${profile.displayName} on Synced-In`;
-    const shareText = profile.bio.trim() || 'View this Synced-In creator profile.';
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl
-        });
-        return;
-      }
-
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
-        setFeedback('Profile link copied.');
-        return;
-      }
-
-      setFeedback(shareUrl);
-    } catch (error) {
-      if ((error as Error).name !== 'AbortError') {
-        setFeedback('Could not share this profile right now.');
-      }
-    }
-  }
-
   function handlePrimaryAction() {
     if (!profile || profile.role !== 'creator') {
       void handleStartConversation();
@@ -346,59 +325,17 @@ export default function PublicProfilePage() {
     void handleStartConversation();
   }
 
-  function handleCreatorCtaPress(block: CreatorProfileCtaBlock) {
-    if (block.actionType === 'form') {
-      handleOpenInquiryForm();
-      return;
-    }
-
-    if (block.actionType === 'external_url') {
-      if (block.target.trim()) {
-        window.open(block.target.trim(), '_blank', 'noopener,noreferrer');
-        return;
-      }
-
-      setFeedback('This link is not configured yet.');
-      return;
-    }
-
-    if (block.actionType === 'booking') {
-      setFeedback('Booking from public web profiles is coming next.');
-      return;
-    }
-
-    void handleStartConversation();
-  }
-
-  function handleBack() {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-      return;
-    }
-
-    router.push('/');
+  function handlePortfolioClick() {
+    document.getElementById('aura-services')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   if (!isConfigured || !supabase) {
     return (
-      <div className="thread-page">
-        <header className="public-route-header-shell">
-          <div className="public-route-header">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
-            </button>
-
-            <div className="brand brand-wordmark">
-              <BrandMark />
-            </div>
-          </div>
-        </header>
-
-        <main className="center-stage-page">
-          <div className="center-stage">
-            <h1 className="stage-title">Profile</h1>
-            <p className="stage-body">Add your Supabase keys in `apps/web/.env.local` to load public profiles on desktop.</p>
-          </div>
+      <div className="aura-profile-page">
+        <ProfileTopBar scrolled={topbarScrolled} />
+        <main className="aura-state-page">
+          <h1>Profile</h1>
+          <p>Add your Supabase keys in `apps/web/.env.local` to load public profiles on desktop.</p>
         </main>
       </div>
     );
@@ -406,20 +343,11 @@ export default function PublicProfilePage() {
 
   if (sessionLoading || loadingProfile) {
     return (
-      <div className="thread-page">
-        <header className="public-route-header-shell">
-          <div className="public-route-header">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
-            </button>
-          </div>
-        </header>
-
-        <main className="center-stage-page">
-          <div className="center-stage">
-            <div className="spinner" aria-hidden="true" />
-            <p className="stage-body">Loading profile...</p>
-          </div>
+      <div className="aura-profile-page">
+        <ProfileTopBar scrolled={topbarScrolled} />
+        <main className="aura-state-page">
+          <div className="spinner" aria-hidden="true" />
+          <p>Loading profile...</p>
         </main>
       </div>
     );
@@ -427,20 +355,11 @@ export default function PublicProfilePage() {
 
   if (!user) {
     return (
-      <div className="thread-page">
-        <header className="public-route-header-shell">
-          <div className="public-route-header">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
-            </button>
-          </div>
-        </header>
-
-        <main className="center-stage-page">
-          <div className="center-stage">
-            <h1 className="stage-title">Sign in to continue</h1>
-            <p className="stage-body">Public creator profiles on web use your authenticated Synced-In account.</p>
-          </div>
+      <div className="aura-profile-page">
+        <ProfileTopBar scrolled={topbarScrolled} />
+        <main className="aura-state-page">
+          <h1>Sign in to continue</h1>
+          <p>Public creator profiles on web use your authenticated Synced-In account.</p>
         </main>
       </div>
     );
@@ -448,44 +367,27 @@ export default function PublicProfilePage() {
 
   if (!resolvedProfileId || !profile) {
     return (
-      <div className="thread-page">
-        <header className="public-route-header-shell">
-          <div className="public-route-header">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
-            </button>
-          </div>
-        </header>
-
-        <main className="center-stage-page">
-          <div className="center-stage">
-            <h1 className="stage-title">Profile not found</h1>
-            <p className="stage-body">{feedback ?? 'This public profile is not available right now.'}</p>
-          </div>
+      <div className="aura-profile-page">
+        <ProfileTopBar scrolled={topbarScrolled} />
+        <main className="aura-state-page">
+          <h1>Profile not found</h1>
+          <p>{feedback ?? 'This public profile is not available right now.'}</p>
         </main>
       </div>
     );
   }
 
-  const creatorDmPolicy = profile.creatorProfile?.dmIntakePolicy ?? 'direct_message';
-  const primaryActionLabel =
-    profile.role === 'creator'
-      ? creatorDmPolicy === 'form'
-        ? 'Fill form'
-        : creatorDmPolicy === 'paid_fee'
-          ? `Pay $${profile.creatorProfile?.dmFeeUsd ?? 25}`
-          : 'Message'
-      : 'Message';
-  const showSecondaryFormButton = profile.role === 'creator' && creatorDmPolicy === 'direct_message';
-  const profileTag =
-    profile.role === 'creator' ? profile.creatorProfile?.niche?.trim() || 'Creator profile' : 'Supporter profile';
+  const profileTag = profile.role === 'creator' ? profile.creatorProfile?.niche?.trim() || 'Creator' : 'Supporter';
   const subtitle =
     profile.role === 'creator'
-      ? profile.creatorProfile?.headline?.trim() || 'Creator on Synced-In'
-      : 'Supporter on Synced-In';
-  const resolvedBio = profile.bio.trim() || 'This user has not added a bio yet.';
+      ? profile.creatorProfile?.headline?.trim() || 'Digital Strategist & Enterprise Architect'
+      : 'Synced-In supporter';
+  const resolvedBio =
+    profile.bio.trim() ||
+    'Empowering modern creators through focused offers, direct relationships, and intuitive client experiences.';
   const profileHandle = formatProfileHandle(profile);
-  const showAvatarImage = Boolean(profile.avatarUrl && !avatarFailed);
+  const avatarUrl = profile.avatarUrl && !avatarFailed ? profile.avatarUrl : FALLBACK_AVATAR;
+  const creatorDmPolicy = profile.role === 'creator' ? profile.creatorProfile?.dmIntakePolicy ?? 'direct_message' : 'direct_message';
   const creatorPageBlocks =
     profile.role === 'creator'
       ? getEffectiveCreatorPageBlocks(profile.creatorProfile?.pageBlocks, creatorDmPolicy)
@@ -496,104 +398,117 @@ export default function PublicProfilePage() {
   const offeringsBlock = creatorPageBlocks.find((block) => block.type === 'offers') as
     | Extract<CreatorProfilePageBlock, { type: 'offers' }>
     | undefined;
-  const ctaBlock = creatorPageBlocks.find((block) => block.type === 'cta') as
-    | Extract<CreatorProfilePageBlock, { type: 'cta' }>
-    | undefined;
+  const offeringItems = offeringsBlock?.items.slice(0, 3) ?? [];
+
   return (
-    <div className="atelier-profile-page">
-      <main className="atelier-profile-main">
-        <section className="atelier-profile-header">
-          <div className="atelier-cover atelier-reveal">
-            {profile.coverImageUrl ? (
-              <img src={profile.coverImageUrl} alt={profile.displayName} />
-            ) : (
-              <CoverPlaceholder />
-            )}
+    <div className="aura-profile-page">
+      <ProfileTopBar scrolled={topbarScrolled} />
+
+      <main className="aura-profile-main" id="aura-profile-top">
+        <section className="aura-hero">
+          <div className="aura-hero-background">
+            <img src={HERO_BACKGROUND} alt="" />
+            <div className="aura-hero-gradient-top" />
+            <div className="aura-hero-gradient-side" />
           </div>
 
-          <div className="atelier-profile-info atelier-reveal atelier-delay-200">
-            <div className="atelier-profile-identity">
-              <div className="atelier-avatar">
-                {showAvatarImage ? (
-                  <img src={profile.avatarUrl} alt={profile.displayName} onError={() => setAvatarFailed(true)} />
-                ) : (
-                  <span>{getInitials(profile.displayName)}</span>
-                )}
-              </div>
-
-              <div className="atelier-profile-copy">
-                <p className="atelier-kicker">{profileTag}</p>
-                <h1>{profile.displayName}</h1>
-                <p className="atelier-handle">{profileHandle}</p>
-                <p className="atelier-subtitle">{subtitle}</p>
-                <p className="atelier-bio">{resolvedBio}</p>
-              </div>
+          <div className="aura-hero-content aura-animate-fade-in-up">
+            <div className="aura-avatar-shell">
+              <div />
+              <img src={avatarUrl} alt={profile.displayName} onError={() => setAvatarFailed(true)} />
             </div>
 
-            <div className="atelier-profile-actions">
-              <button type="button" className="atelier-primary-button" onClick={handlePrimaryAction} disabled={startingConversation}>
-                {startingConversation ? 'Opening...' : primaryActionLabel}
+            <p className="aura-kicker">{profileTag}</p>
+            <h1>{profile.displayName}</h1>
+            <h2>{subtitle}</h2>
+            <p>{resolvedBio}</p>
+            <span className="aura-profile-handle">{profileHandle}</span>
+
+            <div className="aura-hero-actions">
+              <button type="button" className="aura-primary-button" onClick={handlePrimaryAction} disabled={startingConversation}>
+                <span className="material-symbols-outlined">mail</span>
+                {startingConversation ? 'Opening...' : 'Send Message'}
               </button>
-
-              {showSecondaryFormButton ? (
-                <button type="button" className="atelier-secondary-button" onClick={handleOpenInquiryForm}>
-                  Form
-                </button>
-              ) : null}
-
-              <button type="button" className="atelier-share-button" onClick={handleShareProfile} aria-label="Share profile">
-                <ShareIcon />
+              <button type="button" className="aura-secondary-button" onClick={handlePortfolioClick}>
+                View Portfolio
               </button>
             </div>
+
+            {feedback ? <p className="aura-feedback">{feedback}</p> : null}
           </div>
 
-          <div className="atelier-stats atelier-reveal atelier-delay-300">
-            <div>
-              <span>{posts.length}</span>
-              <p>Posts</p>
-            </div>
-            <div>
-              <span>{profile.role === 'creator' ? getDmAccessLabel(profile.creatorProfile?.dmAccess) : 'Member'}</span>
-              <p>{profile.role === 'creator' ? 'Message access' : 'Profile'}</p>
-            </div>
-            <div>
-              <span>{profile.role === 'creator' ? getDmIntakePolicyShortLabel(profile.creatorProfile?.dmIntakePolicy) : profile.presence}</span>
-              <p>{profile.role === 'creator' ? 'Intake' : 'Presence'}</p>
-            </div>
-          </div>
-
-          {feedback ? <p className="feedback-inline atelier-feedback">{feedback}</p> : null}
+          <a href="#aura-video" className="aura-scroll-indicator" aria-label="Scroll to video introduction">
+            <span className="material-symbols-outlined">keyboard_arrow_down</span>
+          </a>
         </section>
 
-        <AtelierVideoBlock block={videoBlock} />
+        <section className="aura-video-section" id="aura-video">
+          <div className="aura-section-inner aura-reveal">
+            <div className="aura-section-heading">
+              <span>Vision</span>
+              <h2>The Architecture of Tomorrow</h2>
+            </div>
 
-        <AtelierOfferings block={offeringsBlock} />
-
-        <AtelierCta block={ctaBlock} onPress={handleCreatorCtaPress} loading={startingConversation} />
-
-        <section className="atelier-posts-section">
-          <div className="atelier-posts-header atelier-reveal">
-            <h2>Recent Posts</h2>
-            {posts.length ? (
-              <button type="button">
-                View all
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="aura-video-frame aura-hover-lift"
+              onClick={() => {
+                if (videoBlock?.videoUrl) {
+                  window.open(videoBlock.videoUrl, '_blank', 'noopener,noreferrer');
+                }
+              }}
+            >
+              <img src={VIDEO_THUMBNAIL} alt={videoBlock?.title || 'Professional presenting data'} />
+              <div className="aura-video-overlay" />
+              <span className="aura-play-button">
+                <span />
+                <span className="material-symbols-outlined">play_arrow</span>
+              </span>
+            </button>
           </div>
+        </section>
 
-          <div className="atelier-post-list">
-            {posts.length ? (
-              posts.slice(0, 3).map((post, index) => (
-                <div key={post.id} className="atelier-reveal" style={{ animationDelay: `${index * 100}ms` }}>
-                  <PostCard post={post} />
-                </div>
-              ))
-            ) : (
-              <article className="atelier-empty-posts atelier-reveal">
-                <h3>No posts yet</h3>
-                <p>This creator has not shared any public updates yet.</p>
-              </article>
-            )}
+        <section className="aura-services-section" id="aura-services">
+          <div className="aura-services-glow" />
+          <div className="aura-section-inner">
+            <div className="aura-section-heading aura-reveal">
+              <span>Expertise</span>
+              <h2>Premium Services</h2>
+            </div>
+
+            <div className="aura-services-grid">
+              {offeringItems.map((item, index) => (
+                <ServiceCard key={item.id} item={item} index={index} />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="aura-updates-section" id="aura-updates">
+          <div className="aura-updates-inner aura-reveal">
+            <div className="aura-updates-heading">
+              <h2>Recent Updates</h2>
+              {posts.length ? (
+                <button type="button">
+                  View all <span className="material-symbols-outlined">open_in_new</span>
+                </button>
+              ) : null}
+            </div>
+
+            <div className="aura-updates-list">
+              {posts.length ? (
+                posts.slice(0, 2).map((post, index) => (
+                  <UpdateCard key={post.id} post={post} index={index} profile={profile} />
+                ))
+              ) : (
+                <article className="aura-glass-panel aura-update-card">
+                  <div className="aura-update-empty">
+                    <h3>No recent updates yet</h3>
+                    <p>This creator has not shared public updates yet.</p>
+                  </div>
+                </article>
+              )}
+            </div>
           </div>
         </section>
       </main>
