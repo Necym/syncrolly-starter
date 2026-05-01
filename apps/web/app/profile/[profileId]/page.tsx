@@ -32,18 +32,6 @@ function getDmAccessLabel(value: 'free' | 'subscriber_only' | 'paid_only' | unde
   return 'Paid only';
 }
 
-function getDmIntakePolicyLabel(value: DmIntakePolicy | undefined, feeUsd?: number): string {
-  if (value === 'form') {
-    return 'Inquiry form';
-  }
-
-  if (value === 'paid_fee') {
-    return `Paid fee${feeUsd ? ` ($${feeUsd})` : ''}`;
-  }
-
-  return 'Direct message';
-}
-
 function getDmIntakePolicyShortLabel(value: DmIntakePolicy | undefined): string {
   if (value === 'form') {
     return 'Form';
@@ -375,7 +363,7 @@ export default function PublicProfilePage() {
     }
 
     if (block.actionType === 'booking') {
-      setFeedback('Booking from public web profiles is next in the parity pass.');
+      setFeedback('Booking from public web profiles is coming next.');
       return;
     }
 
@@ -511,11 +499,6 @@ export default function PublicProfilePage() {
   const ctaBlock = creatorPageBlocks.find((block) => block.type === 'cta') as
     | Extract<CreatorProfilePageBlock, { type: 'cta' }>
     | undefined;
-  const quoteText =
-    profile.role === 'creator' && profile.creatorProfile?.headline?.trim()
-      ? profile.creatorProfile.headline.trim()
-      : resolvedBio;
-
   return (
     <div className="atelier-profile-page">
       <main className="atelier-profile-main">
@@ -583,11 +566,6 @@ export default function PublicProfilePage() {
         </section>
 
         <AtelierVideoBlock block={videoBlock} />
-
-        <section className="atelier-quote-section atelier-reveal">
-          <h2>"{quoteText}"</h2>
-          <div />
-        </section>
 
         <AtelierOfferings block={offeringsBlock} />
 
