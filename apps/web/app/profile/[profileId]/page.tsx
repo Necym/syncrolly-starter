@@ -69,6 +69,15 @@ function formatProfileHandle(profile: ViewerProfile): string {
   return `@${slug || 'synced_in'}`;
 }
 
+function formatHandleFromText(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return `@${slug || 'synced_in'}`;
+}
+
 function ShareIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -95,23 +104,99 @@ function CoverPlaceholder() {
 }
 
 function PostCard({ post }: { post: ProfilePost }) {
-  const hasImage = Boolean(post.imageUrl);
-
   return (
-    <article className={`public-post-card public-post-editorial-card${hasImage ? ' has-image' : ' is-text'}`}>
-      {post.imageUrl ? (
-        <div className="public-post-image-frame">
-          <img src={post.imageUrl} alt="" className="public-post-image" />
-        </div>
-      ) : (
-        <blockquote className="public-post-quote">{post.body || 'A new public update is ready to view.'}</blockquote>
-      )}
+    <article className="atelier-post-card">
+      <div className="atelier-post-avatar">
+        {post.authorAvatarUrl ? (
+          <img src={post.authorAvatarUrl} alt={post.authorName} />
+        ) : (
+          <span>{getInitials(post.authorName)}</span>
+        )}
+      </div>
 
-      <div className="public-post-editorial-copy">
-        <p className="public-profile-section-label">{post.relativeTime}</p>
-        {post.body && hasImage ? <p className="public-post-body">{post.body}</p> : null}
+      <div className="atelier-post-copy">
+        <div className="atelier-post-meta">
+          <strong>{post.authorName}</strong>
+          <span>{formatHandleFromText(post.authorName)}</span>
+          <span>{post.relativeTime}</span>
+        </div>
+        {post.body ? <p>{post.body}</p> : null}
+        {post.imageUrl ? <img src={post.imageUrl} alt="" className="atelier-post-media" /> : null}
       </div>
     </article>
+  );
+}
+
+function AtelierVideoBlock({ block }: { block?: Extract<CreatorProfilePageBlock, { type: 'video' }> }) {
+  return (
+    <section className="atelier-video-section atelier-reveal">
+      <div className="atelier-video-frame">
+        {block?.videoUrl ? (
+          <video controls poster={block.thumbnailUrl} src={block.videoUrl} />
+        ) : block?.thumbnailUrl ? (
+          <img src={block.thumbnailUrl} alt="" />
+        ) : (
+          <div className="atelier-video-placeholder">
+            <span>Video introduction</span>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function AtelierOfferings({ block }: { block?: Extract<CreatorProfilePageBlock, { type: 'offers' }> }) {
+  if (!block) {
+    return null;
+  }
+
+  return (
+    <section className="atelier-offerings-section">
+      <div className="atelier-section-heading atelier-reveal">
+        <h2>{block.title || 'Select Offerings'}</h2>
+        {block.eyebrow ? <p>{block.eyebrow}</p> : null}
+      </div>
+
+      <div className="atelier-offering-grid">
+        {block.items.slice(0, 3).map((item, index) => (
+          <article key={item.id} className="atelier-offering-card atelier-reveal" style={{ animationDelay: `${100 + index * 100}ms` }}>
+            <div className="atelier-offering-icon">{getProfilePageOfferIconLabel(item.icon)}</div>
+            <h3>{item.title}</h3>
+            <p>{item.description}</p>
+            <span>{index === 0 ? 'Explore details' : index === 1 ? 'View case studies' : 'Join waitlist'} {'->'}</span>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AtelierCta({
+  block,
+  onPress,
+  loading
+}: {
+  block?: Extract<CreatorProfilePageBlock, { type: 'cta' }>;
+  onPress: (block: CreatorProfileCtaBlock) => void;
+  loading: boolean;
+}) {
+  if (!block) {
+    return null;
+  }
+
+  return (
+    <section className="atelier-cta-section">
+      <div className="atelier-cta-card atelier-reveal">
+        <div>
+          <span>Next step</span>
+          <h2>{block.title || 'Ready to elevate your presence?'}</h2>
+          {block.description ? <p>{block.description}</p> : null}
+        </div>
+        <button type="button" onClick={() => onPress(block)} disabled={loading}>
+          {loading ? 'Opening...' : block.buttonLabel || 'Apply Now'}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -513,179 +598,123 @@ export default function PublicProfilePage() {
     profile.role === 'creator'
       ? getEffectiveCreatorPageBlocks(profile.creatorProfile?.pageBlocks, creatorDmPolicy)
       : [];
-  const hasMediaPostsBlock = creatorPageBlocks.some((block) => block.type === 'media_posts');
+  const videoBlock = creatorPageBlocks.find((block) => block.type === 'video') as
+    | Extract<CreatorProfilePageBlock, { type: 'video' }>
+    | undefined;
+  const offeringsBlock = creatorPageBlocks.find((block) => block.type === 'offers') as
+    | Extract<CreatorProfilePageBlock, { type: 'offers' }>
+    | undefined;
+  const ctaBlock = creatorPageBlocks.find((block) => block.type === 'cta') as
+    | Extract<CreatorProfilePageBlock, { type: 'cta' }>
+    | undefined;
+  const quoteText =
+    profile.role === 'creator' && profile.creatorProfile?.headline?.trim()
+      ? profile.creatorProfile.headline.trim()
+      : resolvedBio;
 
   return (
-    <div className="thread-page public-profile-editorial-page">
-      <header className="public-profile-nav-shell">
-        <div className="public-profile-nav">
-          <button type="button" className="public-profile-nav-brand" onClick={() => router.push('/')} aria-label="Go to Synced-In home">
-            <BrandMark />
-            <span>Synced-In</span>
-          </button>
-
-          <nav className="public-profile-nav-links" aria-label="Profile navigation">
-            <button type="button" className="active">
-              Profile
-            </button>
-            <button type="button">Network</button>
-            <button type="button">Discover</button>
-          </nav>
-
-          <div className="public-profile-nav-actions">
-            <button type="button" aria-label="Search">
-              <Icon name="search" />
-            </button>
-            <button type="button" aria-label="Notifications">
-              <Icon name="notifications" />
-            </button>
-            <div className="public-profile-nav-avatar" aria-hidden="true">
-              {showAvatarImage ? (
-                <img src={profile.avatarUrl} alt="" onError={() => setAvatarFailed(true)} />
-              ) : (
-                <span>{getInitials(profile.displayName)}</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="public-profile-main public-profile-editorial-main">
-        <div className="public-profile-shell public-profile-editorial-shell">
-          <section className="public-profile-hero public-profile-editorial-hero">
-            <div className="public-profile-cover public-profile-editorial-cover">
-              {profile.coverImageUrl ? (
-                <img src={profile.coverImageUrl} alt={profile.displayName} className="public-profile-cover-image" />
-              ) : (
-                <CoverPlaceholder />
-              )}
-            </div>
-
-            <div className="public-profile-editorial-intro">
-              <div className="public-profile-editorial-identity">
-                <div className="public-profile-avatar-frame public-profile-editorial-avatar">
-                  {showAvatarImage ? (
-                    <img
-                      src={profile.avatarUrl}
-                      alt={profile.displayName}
-                      className="public-profile-avatar-image"
-                      onError={() => setAvatarFailed(true)}
-                    />
-                  ) : (
-                    <span className="public-profile-avatar-fallback">{getInitials(profile.displayName)}</span>
-                  )}
-                </div>
-
-                <div className="public-profile-editorial-copy">
-                  <p className="public-profile-section-label public-profile-role-label">{profileTag}</p>
-                  <h1>{profile.displayName}</h1>
-                  <p className="public-profile-kicker public-profile-handle">{profileHandle}</p>
-                  <p className="public-profile-subtitle">{subtitle}</p>
-                  <p className="public-profile-bio public-profile-editorial-bio">{resolvedBio}</p>
-                </div>
-              </div>
-
-              <div className="public-profile-action-row public-profile-editorial-actions">
-                <button
-                  type="button"
-                  className="public-profile-primary-button"
-                  onClick={handlePrimaryAction}
-                  disabled={startingConversation}
-                >
-                  {startingConversation ? <span className="button-spinner" aria-hidden="true" /> : null}
-                  <span>{startingConversation ? 'Opening...' : primaryActionLabel}</span>
-                </button>
-
-                {showSecondaryFormButton ? (
-                  <button type="button" className="public-profile-secondary-button" onClick={handleOpenInquiryForm}>
-                    Form
-                  </button>
-                ) : null}
-
-                <button type="button" className="public-profile-share-button" onClick={handleShareProfile} aria-label="Share profile">
-                  <ShareIcon />
-                </button>
-              </div>
-            </div>
-
-            <div className="public-profile-stats public-profile-editorial-stats">
-              <div className="public-profile-stat-card">
-                <span className="public-profile-stat-value">{posts.length}</span>
-                <span className="public-profile-stat-label">Posts</span>
-              </div>
-              <div className="public-profile-stat-card">
-                <span className="public-profile-stat-value">
-                  {profile.role === 'creator' ? getDmAccessLabel(profile.creatorProfile?.dmAccess) : 'Member'}
-                </span>
-                <span className="public-profile-stat-label">{profile.role === 'creator' ? 'Message access' : 'Profile'}</span>
-              </div>
-              <div className="public-profile-stat-card">
-                <span className="public-profile-stat-value">
-                  {profile.role === 'creator' ? getDmIntakePolicyShortLabel(profile.creatorProfile?.dmIntakePolicy) : profile.presence}
-                </span>
-                <span className="public-profile-stat-label">{profile.role === 'creator' ? 'Intake' : 'Presence'}</span>
-              </div>
-            </div>
-          </section>
-
-          {feedback ? <p className="feedback-inline public-profile-feedback">{feedback}</p> : null}
-
-          <div className="public-profile-tabs" role="tablist" aria-label="Profile sections">
-            <button type="button" className="active">
-              Portfolio
-            </button>
-            <button type="button">Articles</button>
-            <button type="button">Mentions</button>
-          </div>
-
-          {creatorPageBlocks.length ? (
-            <section className="public-profile-block-stack public-profile-editorial-blocks">
-              {creatorPageBlocks.map((block) => (
-                <PublicProfileBlock
-                  key={block.id}
-                  block={block}
-                  posts={posts}
-                  onCtaPress={handleCreatorCtaPress}
-                  ctaLoading={startingConversation}
-                />
-              ))}
-            </section>
-          ) : null}
-
-          <section className="public-profile-posts public-profile-editorial-posts">
-            <div className="public-profile-posts-header">
-              <span className="public-profile-section-label">Portfolio</span>
-              <h2>{hasMediaPostsBlock ? 'More from this creator' : 'Recent updates'}</h2>
-            </div>
-
-            {posts.length ? (
-              <div className="public-profile-post-list">
-                {posts.map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-              </div>
+    <div className="atelier-profile-page">
+      <main className="atelier-profile-main">
+        <section className="atelier-profile-header">
+          <div className="atelier-cover atelier-reveal">
+            {profile.coverImageUrl ? (
+              <img src={profile.coverImageUrl} alt={profile.displayName} />
             ) : (
-              <article className="public-profile-empty-posts">
+              <CoverPlaceholder />
+            )}
+          </div>
+
+          <div className="atelier-profile-info atelier-reveal atelier-delay-200">
+            <div className="atelier-profile-identity">
+              <div className="atelier-avatar">
+                {showAvatarImage ? (
+                  <img src={profile.avatarUrl} alt={profile.displayName} onError={() => setAvatarFailed(true)} />
+                ) : (
+                  <span>{getInitials(profile.displayName)}</span>
+                )}
+              </div>
+
+              <div className="atelier-profile-copy">
+                <p className="atelier-kicker">{profileTag}</p>
+                <h1>{profile.displayName}</h1>
+                <p className="atelier-handle">{profileHandle}</p>
+                <p className="atelier-subtitle">{subtitle}</p>
+                <p className="atelier-bio">{resolvedBio}</p>
+              </div>
+            </div>
+
+            <div className="atelier-profile-actions">
+              <button type="button" className="atelier-primary-button" onClick={handlePrimaryAction} disabled={startingConversation}>
+                {startingConversation ? 'Opening...' : primaryActionLabel}
+              </button>
+
+              {showSecondaryFormButton ? (
+                <button type="button" className="atelier-secondary-button" onClick={handleOpenInquiryForm}>
+                  Form
+                </button>
+              ) : null}
+
+              <button type="button" className="atelier-share-button" onClick={handleShareProfile} aria-label="Share profile">
+                <ShareIcon />
+              </button>
+            </div>
+          </div>
+
+          <div className="atelier-stats atelier-reveal atelier-delay-300">
+            <div>
+              <span>{posts.length}</span>
+              <p>Posts</p>
+            </div>
+            <div>
+              <span>{profile.role === 'creator' ? getDmAccessLabel(profile.creatorProfile?.dmAccess) : 'Member'}</span>
+              <p>{profile.role === 'creator' ? 'Message access' : 'Profile'}</p>
+            </div>
+            <div>
+              <span>{profile.role === 'creator' ? getDmIntakePolicyShortLabel(profile.creatorProfile?.dmIntakePolicy) : profile.presence}</span>
+              <p>{profile.role === 'creator' ? 'Intake' : 'Presence'}</p>
+            </div>
+          </div>
+
+          {feedback ? <p className="feedback-inline atelier-feedback">{feedback}</p> : null}
+        </section>
+
+        <AtelierVideoBlock block={videoBlock} />
+
+        <section className="atelier-quote-section atelier-reveal">
+          <h2>"{quoteText}"</h2>
+          <div />
+        </section>
+
+        <AtelierOfferings block={offeringsBlock} />
+
+        <AtelierCta block={ctaBlock} onPress={handleCreatorCtaPress} loading={startingConversation} />
+
+        <section className="atelier-posts-section">
+          <div className="atelier-posts-header atelier-reveal">
+            <h2>Recent Posts</h2>
+            {posts.length ? (
+              <button type="button">
+                View all
+              </button>
+            ) : null}
+          </div>
+
+          <div className="atelier-post-list">
+            {posts.length ? (
+              posts.slice(0, 3).map((post, index) => (
+                <div key={post.id} className="atelier-reveal" style={{ animationDelay: `${index * 100}ms` }}>
+                  <PostCard post={post} />
+                </div>
+              ))
+            ) : (
+              <article className="atelier-empty-posts atelier-reveal">
                 <h3>No posts yet</h3>
-                <p>This profile has not shared any public updates yet.</p>
+                <p>This creator has not shared any public updates yet.</p>
               </article>
             )}
-          </section>
-        </div>
+          </div>
+        </section>
       </main>
-
-      <footer className="public-profile-footer">
-        <div>
-          <BrandMark />
-          <strong>Synced-In</strong>
-        </div>
-        <nav aria-label="Social links">
-          <span>Instagram</span>
-          <span>LinkedIn</span>
-          <span>Twitter</span>
-        </nav>
-        <p>Creator profile powered by Synced-In.</p>
-      </footer>
     </div>
   );
 }
