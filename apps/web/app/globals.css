@@ -5631,7 +5631,7 @@ a {
 .atelier-profile-main {
   width: min(1200px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 32px 0 112px;
+  padding: 24px 0 112px;
 }
 
 .atelier-profile-page h1,
@@ -5672,7 +5672,7 @@ a {
 
 .atelier-cover {
   position: relative;
-  height: clamp(240px, 29vw, 320px);
+  height: 320px;
   overflow: hidden;
   background: #e6e8ea;
   border: 1px solid rgba(195, 198, 214, 0.2);
@@ -5768,10 +5768,10 @@ a {
 .atelier-profile-copy h1 {
   margin: 6px 0 0;
   color: #191c1e;
-  font-size: clamp(2.25rem, 4.2vw, 4.1rem);
+  font-size: clamp(1.875rem, 3vw, 2.25rem);
   font-weight: 800;
-  line-height: 0.96;
-  letter-spacing: -0.055em;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
 }
 
 .atelier-handle {
@@ -5782,7 +5782,7 @@ a {
 .atelier-subtitle {
   margin: 12px 0 0;
   color: #2f3b4f;
-  font-size: clamp(1rem, 1.45vw, 1.18rem);
+  font-size: clamp(1rem, 1.35vw, 1.125rem);
   font-weight: 800;
   line-height: 1.45;
 }
@@ -5791,7 +5791,7 @@ a {
   max-width: 620px;
   margin: 16px 0 0;
   color: #424654;
-  font-size: clamp(1rem, 1.8vw, 1.22rem);
+  font-size: clamp(1rem, 1.45vw, 1.125rem);
   line-height: 1.62;
 }
 
@@ -5870,10 +5870,10 @@ a {
   display: block;
   color: #191c1e;
   font-family: "Noto Serif", Georgia, "Times New Roman", serif;
-  font-size: clamp(2rem, 3.3vw, 3.1rem);
+  font-size: clamp(1.5rem, 2.45vw, 1.875rem);
   font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.055em;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
 }
 
 .atelier-stats p {
@@ -6236,11 +6236,11 @@ a {
 
 @media (max-width: 640px) {
   .atelier-cover {
-    height: 220px;
+    height: 192px;
   }
 
   .atelier-profile-copy h1 {
-    font-size: clamp(2.35rem, 14vw, 3.4rem);
+    font-size: 1.875rem;
   }
 
   .atelier-stats {
@@ -6250,7 +6250,7 @@ a {
   }
 
   .atelier-stats span {
-    font-size: clamp(1.55rem, 9vw, 2.15rem);
+    font-size: 1.5rem;
   }
 
   .atelier-stats p {
