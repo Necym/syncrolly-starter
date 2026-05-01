@@ -3,7 +3,7 @@
 import { type CreatorProfileOfferItem, type CreatorProfilePageBlock, type ProfilePost, type ViewerProfile } from '@syncrolly/core';
 import { createDirectConversation, getPublicProfile, listProfilePosts } from '@syncrolly/data';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { getEffectiveCreatorPageBlocks } from '../../../lib/profilePageBuilder';
 import { useWebSession } from '../../../lib/session';
 import { getErrorMessage } from '../../ui';
@@ -21,6 +21,145 @@ const OFFER_IMAGES = [
 ];
 const POST_PREVIEW_IMAGE =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDIlvi04lmxgNEcG9mS7njFjCEYjjMzUr6eFe4jL1hhw8iq0q2oIHarqUEr11oTSf0chSun9_ovUPc32yGL9BwsXtoerMvmVnCDfAQAO5kEbCLAEdLQAcDJ4XoP_8Fq_LIN6-RlPu6oU6ZtjlL3M4GqPi9wsoFdRqqwyOLC-ZA8wwpi4v0MXT-9p7wxYmGKdZni3UTPVbh8V5r7sudGXvhGS1vn8mCgmAuMK9gi4_Y1MtTcWb0oBaDG8BrMjKVu-7mv_mQSgcFpSRaT';
+
+type AuraIconName =
+  | 'architecture'
+  | 'arrowForward'
+  | 'chat'
+  | 'chevronDown'
+  | 'favorite'
+  | 'forum'
+  | 'groups'
+  | 'mail'
+  | 'menuBook'
+  | 'openNew'
+  | 'play'
+  | 'playCircle'
+  | 'repeat'
+  | 'rocketLaunch'
+  | 'shieldLock'
+  | 'sparkles'
+  | 'timeline'
+  | 'verified';
+
+function AuraIcon({ name, className = '' }: { name: AuraIconName; className?: string }) {
+  const icons: Record<AuraIconName, ReactNode> = {
+    architecture: (
+      <>
+        <path d="M4 20 20 4" />
+        <path d="m14 4 6 6" />
+        <path d="M3.5 20.5 8 19l-3-3-1.5 4.5Z" />
+        <path d="m12 8 4 4" />
+      </>
+    ),
+    arrowForward: (
+      <>
+        <path d="M5 12h14" />
+        <path d="m13 6 6 6-6 6" />
+      </>
+    ),
+    chat: (
+      <>
+        <path d="M5 6.5h14v9H9l-4 3v-12Z" />
+        <path d="M8 10h8" />
+        <path d="M8 13h5" />
+      </>
+    ),
+    chevronDown: <path d="m6 9 6 6 6-6" />,
+    favorite: (
+      <path d="M12 20s-7-4.4-8.7-9.1C2.1 7.4 4.4 5 7.1 5c1.6 0 3 .8 3.9 2 .9-1.2 2.3-2 3.9-2 2.7 0 5 2.4 3.8 5.9C19 15.6 12 20 12 20Z" />
+    ),
+    forum: (
+      <>
+        <path d="M4 5h12v8H8l-4 3V5Z" />
+        <path d="M9 14h7l4 3V8h-3" />
+      </>
+    ),
+    groups: (
+      <>
+        <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M15.5 10a2.5 2.5 0 1 0 0-5" />
+        <path d="M3.5 19c.8-3.2 2.8-5 5.5-5s4.7 1.8 5.5 5" />
+        <path d="M14.5 14.4c2.2.4 3.7 2 4.3 4.6" />
+      </>
+    ),
+    mail: (
+      <>
+        <path d="M4 6h16v12H4V6Z" />
+        <path d="m4 7 8 6 8-6" />
+      </>
+    ),
+    menuBook: (
+      <>
+        <path d="M4 5.5c3 0 5 .6 8 2.3v11c-3-1.7-5-2.3-8-2.3v-11Z" />
+        <path d="M20 5.5c-3 0-5 .6-8 2.3v11c3-1.7 5-2.3 8-2.3v-11Z" />
+      </>
+    ),
+    openNew: (
+      <>
+        <path d="M14 5h5v5" />
+        <path d="m19 5-8 8" />
+        <path d="M19 14v5H5V5h5" />
+      </>
+    ),
+    play: <path d="M9 6.5 18 12l-9 5.5v-11Z" fill="currentColor" stroke="none" />,
+    playCircle: (
+      <>
+        <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
+        <path d="m10 8 6 4-6 4V8Z" />
+      </>
+    ),
+    repeat: (
+      <>
+        <path d="M17 2.5 21 6l-4 3.5" />
+        <path d="M3 11V9a3 3 0 0 1 3-3h15" />
+        <path d="m7 21.5-4-3.5 4-3.5" />
+        <path d="M21 13v2a3 3 0 0 1-3 3H3" />
+      </>
+    ),
+    rocketLaunch: (
+      <>
+        <path d="M14 4c3.5.4 5.6 2.5 6 6l-5.8 5.8-6-6L14 4Z" />
+        <path d="m8.2 9.8-3.7 1.1 2.8 2.8" />
+        <path d="m14.2 15.8-1.1 3.7-2.8-2.8" />
+        <path d="M15.5 8.5h.01" />
+      </>
+    ),
+    shieldLock: (
+      <>
+        <path d="M12 3 20 6v5c0 5-3.3 8.5-8 10-4.7-1.5-8-5-8-10V6l8-3Z" />
+        <path d="M9 12.5h6v4H9v-4Z" />
+        <path d="M10 12.5V11a2 2 0 1 1 4 0v1.5" />
+      </>
+    ),
+    sparkles: (
+      <>
+        <path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" />
+        <path d="m5 15 .8 2.2L8 18l-2.2.8L5 21l-.8-2.2L2 18l2.2-.8L5 15Z" />
+        <path d="m19 3 .6 1.4L21 5l-1.4.6L19 7l-.6-1.4L17 5l1.4-.6L19 3Z" />
+      </>
+    ),
+    timeline: (
+      <>
+        <path d="M4 17 9 11l4 4 7-9" />
+        <path d="M4 20h16" />
+        <path d="M4 4v16" />
+      </>
+    ),
+    verified: (
+      <>
+        <path d="m12 2 2.2 2 3-.3.8 2.9 2.6 1.5-1.2 2.8 1.2 2.8-2.6 1.5-.8 2.9-3-.3-2.2 2-2.2-2-3 .3-.8-2.9-2.6-1.5 1.2-2.8-1.2-2.8L6 6.6l.8-2.9 3 .3L12 2Z" />
+        <path d="m8.5 12.1 2.2 2.2 4.8-5" />
+      </>
+    )
+  };
+
+  return (
+    <svg className={`aura-icon ${className}`} viewBox="0 0 24 24" aria-hidden="true">
+      {icons[name]}
+    </svg>
+  );
+}
 
 function formatProfileHandle(profile: ViewerProfile): string {
   const base =
@@ -44,7 +183,7 @@ function formatHandleFromText(value: string): string {
   return `@${slug || 'syncedin'}`;
 }
 
-function getOfferIconName(icon: CreatorProfileOfferItem['icon']): string {
+function getOfferIconName(icon: CreatorProfileOfferItem['icon']): AuraIconName {
   switch (icon) {
     case 'call-outline':
       return 'architecture';
@@ -53,17 +192,17 @@ function getOfferIconName(icon: CreatorProfileOfferItem['icon']): string {
     case 'people-outline':
       return 'groups';
     case 'school-outline':
-      return 'menu_book';
+      return 'menuBook';
     case 'desktop-outline':
-      return 'shield_lock';
+      return 'shieldLock';
     case 'chatbubble-ellipses-outline':
       return 'forum';
     case 'videocam-outline':
-      return 'play_circle';
+      return 'playCircle';
     case 'rocket-outline':
-      return 'rocket_launch';
+      return 'rocketLaunch';
     default:
-      return 'auto_awesome';
+      return 'sparkles';
   }
 }
 
@@ -106,13 +245,13 @@ function ServiceCard({ item, index }: { item: CreatorProfileOfferItem; index: nu
       </div>
       <div className="aura-service-body">
         <div className="aura-service-icon">
-          <span className="material-symbols-outlined">{getOfferIconName(item.icon)}</span>
+          <AuraIcon name={getOfferIconName(item.icon)} />
         </div>
         <h3>{item.title}</h3>
         <p>{item.description}</p>
         <a href="#aura-updates">
           Explore Offering
-          <span className="material-symbols-outlined">arrow_forward</span>
+          <AuraIcon name="arrowForward" />
         </a>
       </div>
     </article>
@@ -130,7 +269,7 @@ function UpdateCard({ post, index, profile }: { post: ProfilePost; index: number
         <div className="aura-update-content">
           <div className="aura-update-meta">
             <strong>{post.authorName}</strong>
-            <span className="material-symbols-outlined aura-verified">verified</span>
+            <AuraIcon name="verified" className="aura-verified" />
             <span>{formatHandleFromText(post.authorName)} · {post.relativeTime}</span>
           </div>
 
@@ -148,15 +287,15 @@ function UpdateCard({ post, index, profile }: { post: ProfilePost; index: number
 
           <div className="aura-update-actions">
             <span>
-              <span className="material-symbols-outlined">chat_bubble</span>
+              <AuraIcon name="chat" />
               0
             </span>
             <span>
-              <span className="material-symbols-outlined">repeat</span>
+              <AuraIcon name="repeat" />
               0
             </span>
             <span>
-              <span className="material-symbols-outlined">favorite</span>
+              <AuraIcon name="favorite" />
               {post.likeCount}
             </span>
           </div>
@@ -426,7 +565,7 @@ export default function PublicProfilePage() {
 
             <div className="aura-hero-actions">
               <button type="button" className="aura-primary-button" onClick={handlePrimaryAction} disabled={startingConversation}>
-                <span className="material-symbols-outlined">mail</span>
+                <AuraIcon name="mail" />
                 {startingConversation ? 'Opening...' : 'Send Message'}
               </button>
               <button type="button" className="aura-secondary-button" onClick={handlePortfolioClick}>
@@ -438,7 +577,7 @@ export default function PublicProfilePage() {
           </div>
 
           <a href="#aura-video" className="aura-scroll-indicator" aria-label="Scroll to video introduction">
-            <span className="material-symbols-outlined">keyboard_arrow_down</span>
+            <AuraIcon name="chevronDown" />
           </a>
         </section>
 
@@ -462,7 +601,7 @@ export default function PublicProfilePage() {
               <div className="aura-video-overlay" />
               <span className="aura-play-button">
                 <span />
-                <span className="material-symbols-outlined">play_arrow</span>
+                <AuraIcon name="play" />
               </span>
             </button>
           </div>
@@ -490,7 +629,7 @@ export default function PublicProfilePage() {
               <h2>Recent Updates</h2>
               {posts.length ? (
                 <button type="button">
-                  View all <span className="material-symbols-outlined">open_in_new</span>
+                  View all <AuraIcon name="openNew" />
                 </button>
               ) : null}
             </div>

@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Manrope:wght@400;500;600;700;800&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
 :root {
   color-scheme: light;
@@ -7114,6 +7113,19 @@ a {
   flex-grow: 1;
 }
 
+.aura-icon {
+  width: 1.25em;
+  height: 1.25em;
+  flex: 0 0 auto;
+  display: block;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .aura-hero {
   position: relative;
   min-height: 800px;
@@ -7310,8 +7322,9 @@ a {
   animation: auraBounce 1s infinite;
 }
 
-.aura-scroll-indicator .material-symbols-outlined {
-  font-size: 36px;
+.aura-scroll-indicator .aura-icon {
+  width: 36px;
+  height: 36px;
 }
 
 .aura-video-section {
@@ -7420,7 +7433,7 @@ a {
   animation: auraPing 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-.aura-play-button .material-symbols-outlined {
+.aura-play-button .aura-icon {
   width: 96px;
   height: 96px;
   display: grid;
@@ -7431,14 +7444,18 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  font-size: 60px;
   backdrop-filter: blur(16px);
   transition:
     transform 500ms ease,
     background 500ms ease;
 }
 
-.aura-video-frame:hover .aura-play-button .material-symbols-outlined {
+.aura-play-button .aura-icon path {
+  transform: scale(0.5);
+  transform-origin: center;
+}
+
+.aura-video-frame:hover .aura-play-button .aura-icon {
   transform: scale(1.1);
   background: rgba(173, 198, 255, 0.2);
 }
@@ -7560,9 +7577,10 @@ a {
   border-color: rgba(173, 198, 255, 0.5);
 }
 
-.aura-service-icon .material-symbols-outlined {
+.aura-service-icon .aura-icon {
+  width: 24px;
+  height: 24px;
   color: #adc6ff;
-  font-size: 24px;
 }
 
 .aura-service-card h3 {
@@ -7598,12 +7616,13 @@ a {
   color: #ffffff;
 }
 
-.aura-service-card a .material-symbols-outlined {
-  font-size: 18px;
+.aura-service-card a .aura-icon {
+  width: 18px;
+  height: 18px;
   transition: transform 160ms ease;
 }
 
-.aura-service-card a:hover .material-symbols-outlined {
+.aura-service-card a:hover .aura-icon {
   transform: translateX(4px);
 }
 
@@ -7652,8 +7671,9 @@ a {
   color: #adc6ff;
 }
 
-.aura-updates-heading .material-symbols-outlined {
-  font-size: 14px;
+.aura-updates-heading .aura-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .aura-updates-list {
@@ -7710,9 +7730,9 @@ a {
 }
 
 .aura-verified {
+  width: 16px;
+  height: 16px;
   color: #adc6ff;
-  font-size: 16px;
-  font-variation-settings: 'FILL' 1;
 }
 
 .aura-update-content > p {
@@ -7796,8 +7816,9 @@ a {
   color: #f87171;
 }
 
-.aura-update-actions .material-symbols-outlined {
-  font-size: 20px;
+.aura-update-actions .aura-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .aura-update-empty {
