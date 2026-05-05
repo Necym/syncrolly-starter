@@ -8,105 +8,70 @@ import { getEffectiveCreatorPageBlocks } from '../../../lib/profilePageBuilder';
 import { useWebSession } from '../../../lib/session';
 import { getErrorMessage } from '../../ui';
 
-const HERO_BACKGROUND =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuBuPVYyWYZYvBzUblD0mlmy50TQIxMRVuzihsonWvFaUqepoC-Qefoy-HDZ01Av0BmBcLIT5kagzIMMIIwsyALP-3-KwH3SEdjyY952VpVbFDBikP5wQWEZrHTowi_2ukZb8kNbqK4ty2kwp7KBppgf-ohmB3xbwYfHzJMusItPfRG1j0RLHuiGpoKTiseRem5P0SX-HpajsX51hHV52jQYCQeL50WGKyWyKXJKe2dn1PRqbdCGXgMvc0hfmj1uGwE_ITatrHTLSwet';
 const FALLBACK_AVATAR =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuAR90Injhiln6FyNNzNfn1uOJbbP6hmJiGuK-Lfn4S4fU9e_LHENyi_b8_sbdZ0yRSr0lUd9JuPVHvsmKyc-OwJmW2HgvjjuR7SBrpPeIIB3B9R8qj1G6YsJ8oIZgR3VMPeXO700D9RifS6UlpAd2sdcbr62-_A-2xRltOmgjcE5q6Ahq340b98MBPP1GCqHrZWexb0SBGrMGuOqaUdba-H6F_G9nn7bliuHSCaYacawEO-zYzafV_Tk428qCeroXwrFgHwhDWpHvbN';
+  'https://images.pexels.com/photos/3778603/pexels-photo-3778603.jpeg?auto=compress&cs=tinysrgb&w=600';
+const FALLBACK_COVER =
+  'https://images.pexels.com/photos/1933900/pexels-photo-1933900.jpeg?auto=compress&cs=tinysrgb&w=1600';
 const VIDEO_THUMBNAIL =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDdKX6TJolxkWNrHt8IZgn7c22t7bmFwnglLdnZpmWWKlviHtifsXPK0CDuBJtj_5SUc4XNEKTBI0C3ohWx_r0rJiKB3Q0GR1S0R9g4TULnbhmq6N6Gk4_DJxjiyuWEK2FSFkqoqxfrYY0TgffaDw35wr8DS75rv0eR_sXOezKjgjH7MmcboNfORNigw6U7gCaIcvs65GHOb28GzZ8W_g11SSLlbkJ1IyVoNePj01tBDfG0TVAc7_JvozURpY_0iDcsPXvYUvcLz25H';
-const OFFER_IMAGES = [
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCWiu8uglbJ7CIeNVQc2-XkRP2_agNnWsYBXuspSPE_yLz9A7pWxjHdj-z9-Q4ZJvheFcw9cayfnPOjO3JwLXuXSP6GkeNi2245IHnbyCBjibdXShG6g43-zu3TDbdcLFQL5ZrcoPv831X09BZrMkdvFN1FIHkZzjbRB3gisO7YGL5-u5s51h_YKV168i0CZre2nyb8kl3Bm9AYPfWXTFyy-iYeWzGwx3yPvK0UF3I1arpglWpfW2m4FiweYkFaO61IULENUOFbWrPr',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuB2IgsXpPZ_dukIW0q235jEqnOJzK0Wnrh4jsefmgwkwL7DzR4b32B3KnzPcG1G7xtbOmSJdkJJ1ZPrsc1VG0y45sokp8ZxeefwQTReM-67Mz4jWzL2-TTUHPQ2W7-IqKDQJNIkqgZnDOpqPxb-_LiAbeCiAO4YEm6HlgNGMlLQx0ycxezkxg4PKsYZ-ACq9zhg9E5t00syjdO2ifIvYaTT1O0rFs6jT_ECvJK6ZUtSvYd26RwU7f02VI0YiEDeZhJYbTRvgOwH4bTn',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuAMY-caS19ZOxe2mkcHLVtiJ-CqxZzzpTtFJ36pFgTwcfHLfy7pz9erBklFBjsDKCT3dzmyA3x4OJzBXwDqtRam8LCV8DEjqXF_vTQfgQAxHhCZTsW5FaV2K_Itmj1FDZKvj16X2gzZgaSeWE5v3Lb5WP9NTuRRjN7Ro6ByCkUqSmXtFfzNLB-8oEmP_NFKJrDzpcGQGuHsyX2NIzIOG5FbFxKS6v8y3aiNY2CP4RDLcQVpUrLfKIKgIPjvpaHr6xmebpmVyxSVsW9i'
-];
+  'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=1200';
 const POST_PREVIEW_IMAGE =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDIlvi04lmxgNEcG9mS7njFjCEYjjMzUr6eFe4jL1hhw8iq0q2oIHarqUEr11oTSf0chSun9_ovUPc32yGL9BwsXtoerMvmVnCDfAQAO5kEbCLAEdLQAcDJ4XoP_8Fq_LIN6-RlPu6oU6ZtjlL3M4GqPi9wsoFdRqqwyOLC-ZA8wwpi4v0MXT-9p7wxYmGKdZni3UTPVbh8V5r7sudGXvhGS1vn8mCgmAuMK9gi4_Y1MtTcWb0oBaDG8BrMjKVu-7mv_mQSgcFpSRaT';
+  'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=1200';
+const OFFER_IMAGES = [
+  'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/3183197/pexels-photo-3183197.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/3184357/pexels-photo-3184357.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/3183198/pexels-photo-3183198.jpeg?auto=compress&cs=tinysrgb&w=800'
+];
 
-type AuraIconName =
-  | 'architecture'
-  | 'arrowForward'
-  | 'chat'
-  | 'chevronDown'
-  | 'favorite'
-  | 'forum'
-  | 'groups'
+type NovaIconName =
   | 'mail'
-  | 'menuBook'
-  | 'openNew'
-  | 'play'
-  | 'playCircle'
-  | 'repeat'
-  | 'rocketLaunch'
-  | 'shieldLock'
   | 'sparkles'
-  | 'timeline'
-  | 'verified';
+  | 'play'
+  | 'arrow'
+  | 'heart'
+  | 'comment'
+  | 'repeat'
+  | 'verified'
+  | 'bolt'
+  | 'grid'
+  | 'users'
+  | 'star'
+  | 'calendar'
+  | 'target'
+  | 'book'
+  | 'shield'
+  | 'rocket'
+  | 'chat'
+  | 'forum'
+  | 'timeline';
 
-function AuraIcon({ name, className = '' }: { name: AuraIconName; className?: string }) {
-  const icons: Record<AuraIconName, ReactNode> = {
-    architecture: (
+function NovaIcon({ name, className = '' }: { name: NovaIconName; className?: string }) {
+  const icons: Record<NovaIconName, ReactNode> = {
+    mail: (
       <>
-        <path d="M4 20 20 4" />
-        <path d="m14 4 6 6" />
-        <path d="M3.5 20.5 8 19l-3-3-1.5 4.5Z" />
-        <path d="m12 8 4 4" />
+        <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
+        <path d="m4 7 8 6 8-6" />
       </>
     ),
-    arrowForward: (
+    sparkles: (
+      <>
+        <path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" />
+        <path d="m5 15 .8 2.2L8 18l-2.2.8L5 21l-.8-2.2L2 18l2.2-.8L5 15Z" />
+      </>
+    ),
+    play: <path d="M9 6.5 18 12l-9 5.5v-11Z" fill="currentColor" stroke="none" />,
+    arrow: (
       <>
         <path d="M5 12h14" />
         <path d="m13 6 6 6-6 6" />
       </>
     ),
-    chat: (
-      <>
-        <path d="M5 6.5h14v9H9l-4 3v-12Z" />
-        <path d="M8 10h8" />
-        <path d="M8 13h5" />
-      </>
-    ),
-    chevronDown: <path d="m6 9 6 6 6-6" />,
-    favorite: (
+    heart: (
       <path d="M12 20s-7-4.4-8.7-9.1C2.1 7.4 4.4 5 7.1 5c1.6 0 3 .8 3.9 2 .9-1.2 2.3-2 3.9-2 2.7 0 5 2.4 3.8 5.9C19 15.6 12 20 12 20Z" />
     ),
-    forum: (
+    comment: (
       <>
-        <path d="M4 5h12v8H8l-4 3V5Z" />
-        <path d="M9 14h7l4 3V8h-3" />
-      </>
-    ),
-    groups: (
-      <>
-        <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-        <path d="M15.5 10a2.5 2.5 0 1 0 0-5" />
-        <path d="M3.5 19c.8-3.2 2.8-5 5.5-5s4.7 1.8 5.5 5" />
-        <path d="M14.5 14.4c2.2.4 3.7 2 4.3 4.6" />
-      </>
-    ),
-    mail: (
-      <>
-        <path d="M4 6h16v12H4V6Z" />
-        <path d="m4 7 8 6 8-6" />
-      </>
-    ),
-    menuBook: (
-      <>
-        <path d="M4 5.5c3 0 5 .6 8 2.3v11c-3-1.7-5-2.3-8-2.3v-11Z" />
-        <path d="M20 5.5c-3 0-5 .6-8 2.3v11c3-1.7 5-2.3 8-2.3v-11Z" />
-      </>
-    ),
-    openNew: (
-      <>
-        <path d="M14 5h5v5" />
-        <path d="m19 5-8 8" />
-        <path d="M19 14v5H5V5h5" />
-      </>
-    ),
-    play: <path d="M9 6.5 18 12l-9 5.5v-11Z" fill="currentColor" stroke="none" />,
-    playCircle: (
-      <>
-        <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
-        <path d="m10 8 6 4-6 4V8Z" />
+        <path d="M5 6.5h14v9H9l-4 3v-12Z" />
       </>
     ),
     repeat: (
@@ -117,64 +82,89 @@ function AuraIcon({ name, className = '' }: { name: AuraIconName; className?: st
         <path d="M21 13v2a3 3 0 0 1-3 3H3" />
       </>
     ),
-    rocketLaunch: (
+    verified: (
+      <>
+        <path d="m12 2 2.2 2 3-.3.8 2.9 2.6 1.5-1.2 2.8 1.2 2.8-2.6 1.5-.8 2.9-3-.3-2.2 2-2.2-2-3 .3-.8-2.9-2.6-1.5 1.2-2.8-1.2-2.8L6 6.6l.8-2.9 3 .3L12 2Z" />
+        <path d="m8.5 12.1 2.2 2.2 4.8-5" />
+      </>
+    ),
+    bolt: <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" />,
+    grid: (
+      <>
+        <rect x="4" y="4" width="7" height="7" rx="1.6" />
+        <rect x="13" y="4" width="7" height="7" rx="1.6" />
+        <rect x="4" y="13" width="7" height="7" rx="1.6" />
+        <rect x="13" y="13" width="7" height="7" rx="1.6" />
+      </>
+    ),
+    users: (
+      <>
+        <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M15.5 10a2.5 2.5 0 1 0 0-5" />
+        <path d="M3.5 19c.8-3.2 2.8-5 5.5-5s4.7 1.8 5.5 5" />
+        <path d="M14.5 14.4c2.2.4 3.7 2 4.3 4.6" />
+      </>
+    ),
+    star: <path d="m12 3 2.6 6 6.4.6-4.8 4.4 1.4 6.4L12 17l-5.6 3.4 1.4-6.4L3 9.6 9.4 9 12 3Z" />,
+    calendar: (
+      <>
+        <rect x="4" y="5.5" width="16" height="15" rx="2" />
+        <path d="M4 10h16" />
+        <path d="M8 3v5M16 3v5" />
+      </>
+    ),
+    target: (
+      <>
+        <circle cx="12" cy="12" r="8.5" />
+        <circle cx="12" cy="12" r="4.5" />
+        <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" />
+      </>
+    ),
+    book: (
+      <>
+        <path d="M4 5.5c3 0 5 .6 8 2.3v11c-3-1.7-5-2.3-8-2.3v-11Z" />
+        <path d="M20 5.5c-3 0-5 .6-8 2.3v11c3-1.7 5-2.3 8-2.3v-11Z" />
+      </>
+    ),
+    shield: (
+      <>
+        <path d="M12 3 20 6v5c0 5-3.3 8.5-8 10-4.7-1.5-8-5-8-10V6l8-3Z" />
+      </>
+    ),
+    rocket: (
       <>
         <path d="M14 4c3.5.4 5.6 2.5 6 6l-5.8 5.8-6-6L14 4Z" />
         <path d="m8.2 9.8-3.7 1.1 2.8 2.8" />
         <path d="m14.2 15.8-1.1 3.7-2.8-2.8" />
-        <path d="M15.5 8.5h.01" />
       </>
     ),
-    shieldLock: (
+    chat: (
       <>
-        <path d="M12 3 20 6v5c0 5-3.3 8.5-8 10-4.7-1.5-8-5-8-10V6l8-3Z" />
-        <path d="M9 12.5h6v4H9v-4Z" />
-        <path d="M10 12.5V11a2 2 0 1 1 4 0v1.5" />
+        <path d="M5 6.5h14v9H9l-4 3v-12Z" />
       </>
     ),
-    sparkles: (
+    forum: (
       <>
-        <path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" />
-        <path d="m5 15 .8 2.2L8 18l-2.2.8L5 21l-.8-2.2L2 18l2.2-.8L5 15Z" />
-        <path d="m19 3 .6 1.4L21 5l-1.4.6L19 7l-.6-1.4L17 5l1.4-.6L19 3Z" />
+        <path d="M4 5h12v8H8l-4 3V5Z" />
+        <path d="M9 14h7l4 3V8h-3" />
       </>
     ),
     timeline: (
       <>
         <path d="M4 17 9 11l4 4 7-9" />
         <path d="M4 20h16" />
-        <path d="M4 4v16" />
-      </>
-    ),
-    verified: (
-      <>
-        <path d="m12 2 2.2 2 3-.3.8 2.9 2.6 1.5-1.2 2.8 1.2 2.8-2.6 1.5-.8 2.9-3-.3-2.2 2-2.2-2-3 .3-.8-2.9-2.6-1.5 1.2-2.8-1.2-2.8L6 6.6l.8-2.9 3 .3L12 2Z" />
-        <path d="m8.5 12.1 2.2 2.2 4.8-5" />
       </>
     )
   };
 
   return (
-    <svg className={`aura-icon ${className}`} viewBox="0 0 24 24" aria-hidden="true">
+    <svg className={`nova-icon ${className}`} viewBox="0 0 24 24" aria-hidden="true">
       {icons[name]}
     </svg>
   );
 }
 
-function formatProfileHandle(profile: ViewerProfile): string {
-  const base =
-    profile.role === 'creator'
-      ? profile.creatorProfile?.niche?.trim() || profile.displayName
-      : profile.displayName;
-  const slug = base
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '')
-    .replace(/^_+|_+$/g, '');
-
-  return `@${slug || 'syncedin'}`;
-}
-
-function formatHandleFromText(value: string): string {
+function formatHandle(value: string): string {
   const slug = value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '')
@@ -183,130 +173,54 @@ function formatHandleFromText(value: string): string {
   return `@${slug || 'syncedin'}`;
 }
 
-function getOfferIconName(icon: CreatorProfileOfferItem['icon']): AuraIconName {
+function getOfferIconName(icon: CreatorProfileOfferItem['icon']): NovaIconName {
   switch (icon) {
     case 'call-outline':
-      return 'architecture';
+      return 'calendar';
     case 'trending-up-outline':
       return 'timeline';
     case 'people-outline':
-      return 'groups';
+      return 'users';
     case 'school-outline':
-      return 'menuBook';
+      return 'book';
     case 'desktop-outline':
-      return 'shieldLock';
+      return 'shield';
     case 'chatbubble-ellipses-outline':
       return 'forum';
     case 'videocam-outline':
-      return 'playCircle';
+      return 'play';
     case 'rocket-outline':
-      return 'rocketLaunch';
+      return 'rocket';
     default:
       return 'sparkles';
   }
 }
 
-function ProfileTopBar({ scrolled }: { scrolled: boolean }) {
+function NovaTopBar({ scrolled }: { scrolled: boolean }) {
   return (
-    <nav className={`welcome-nav aura-profile-topbar${scrolled ? ' aura-profile-topbar-scrolled' : ''}`}>
-      <div className="welcome-nav-inner">
-        <a className="welcome-brand" href="/" aria-label="Synced-In home">
-          <img src="/synced-in-logo.png" alt="" className="welcome-brand-logo" aria-hidden="true" />
+    <nav className={`nova-topbar${scrolled ? ' nova-topbar-scrolled' : ''}`}>
+      <div className="nova-topbar-inner">
+        <a className="nova-brand" href="/" aria-label="Synced-In home">
+          <img src="/synced-in-logo.png" alt="" className="nova-brand-logo" aria-hidden="true" />
           <span>Synced-In</span>
         </a>
 
-        <div className="welcome-nav-links" aria-label="Profile page navigation">
+        <div className="nova-topbar-links">
           <a href="/#solutions">Solutions</a>
           <a href="/#platform">Platform</a>
           <a href="/#pricing">Pricing</a>
-          <a href="/#about">About</a>
         </div>
 
-        <div className="welcome-nav-actions">
-          <a className="welcome-login-button" href="/">
+        <div className="nova-topbar-actions">
+          <a className="nova-topbar-login" href="/">
             Login
           </a>
-          <a className="welcome-small-cta" href="/">
+          <a className="nova-topbar-cta" href="/">
             Get Started
           </a>
         </div>
       </div>
     </nav>
-  );
-}
-
-function ServiceCard({ item, index }: { item: CreatorProfileOfferItem; index: number }) {
-  const tones = ['blue', 'purple', 'green'] as const;
-  const tone = tones[index % tones.length];
-  return (
-    <article
-      className={`aura-glass-panel aura-service-card aura-service-card-${tone} aura-hover-lift aura-reveal aura-delay-${index + 1}`}
-    >
-      <div className="aura-card-corner" />
-      {index === 1 ? <div className="aura-card-accent" /> : null}
-      <div className="aura-service-image">
-        <div />
-        <img src={OFFER_IMAGES[index % OFFER_IMAGES.length]} alt="" />
-      </div>
-      <div className="aura-service-body">
-        <div className="aura-service-icon">
-          <AuraIcon name={getOfferIconName(item.icon)} />
-        </div>
-        <h3>{item.title}</h3>
-        <p>{item.description}</p>
-        <a href="#aura-updates">
-          Explore Offering
-          <AuraIcon name="arrowForward" />
-        </a>
-      </div>
-    </article>
-  );
-}
-
-function UpdateCard({ post, index, profile }: { post: ProfilePost; index: number; profile: ViewerProfile }) {
-  const avatarUrl = post.authorAvatarUrl || profile.avatarUrl || FALLBACK_AVATAR;
-  const previewImage = post.imageUrl || (index === 1 ? POST_PREVIEW_IMAGE : undefined);
-
-  return (
-    <article className="aura-glass-panel aura-update-card aura-hover-lift">
-      <div className="aura-update-row">
-        <img src={avatarUrl} alt={post.authorName} />
-        <div className="aura-update-content">
-          <div className="aura-update-meta">
-            <strong>{post.authorName}</strong>
-            <AuraIcon name="verified" className="aura-verified" />
-            <span>{formatHandleFromText(post.authorName)} · {post.relativeTime}</span>
-          </div>
-
-          {post.body ? <p>{post.body}</p> : null}
-
-          {previewImage ? (
-            <div className="aura-link-preview">
-              <img src={previewImage} alt="" />
-              <div>
-                <h4>{index === 1 ? 'The Enterprise AI Integration Framework (2024)' : 'Latest creator update'}</h4>
-                <p>{index === 1 ? 'A comprehensive guide to deploying AI in zero-trust corporate environments.' : 'A new visual update from this creator.'}</p>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="aura-update-actions">
-            <span>
-              <AuraIcon name="chat" />
-              0
-            </span>
-            <span>
-              <AuraIcon name="repeat" />
-              0
-            </span>
-            <span>
-              <AuraIcon name="favorite" />
-              {post.likeCount}
-            </span>
-          </div>
-        </div>
-      </div>
-    </article>
   );
 }
 
@@ -329,7 +243,7 @@ export default function PublicProfilePage() {
 
   useEffect(() => {
     function updateTopbar() {
-      setTopbarScrolled(window.scrollY > 50);
+      setTopbarScrolled(window.scrollY > 40);
     }
 
     updateTopbar();
@@ -338,7 +252,7 @@ export default function PublicProfilePage() {
   }, []);
 
   useEffect(() => {
-    const revealNodes = Array.from(document.querySelectorAll<HTMLElement>('.aura-reveal'));
+    const revealNodes = Array.from(document.querySelectorAll<HTMLElement>('.nova-reveal'));
 
     if (!revealNodes.length) {
       return;
@@ -352,7 +266,7 @@ export default function PublicProfilePage() {
           }
         });
       },
-      { rootMargin: '0px 0px -100px' }
+      { rootMargin: '0px 0px -80px' }
     );
 
     revealNodes.forEach((node) => observer.observe(node));
@@ -469,15 +383,11 @@ export default function PublicProfilePage() {
     void handleStartConversation();
   }
 
-  function handlePortfolioClick() {
-    document.getElementById('aura-services')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
   if (!isConfigured || !supabase) {
     return (
-      <div className="aura-profile-page">
-        <ProfileTopBar scrolled={topbarScrolled} />
-        <main className="aura-state-page">
+      <div className="nova-page">
+        <NovaTopBar scrolled={topbarScrolled} />
+        <main className="nova-state-page">
           <h1>Profile</h1>
           <p>Add your Supabase keys in `apps/web/.env.local` to load public profiles on desktop.</p>
         </main>
@@ -487,9 +397,9 @@ export default function PublicProfilePage() {
 
   if (sessionLoading || loadingProfile) {
     return (
-      <div className="aura-profile-page">
-        <ProfileTopBar scrolled={topbarScrolled} />
-        <main className="aura-state-page">
+      <div className="nova-page">
+        <NovaTopBar scrolled={topbarScrolled} />
+        <main className="nova-state-page">
           <div className="spinner" aria-hidden="true" />
           <p>Loading profile...</p>
         </main>
@@ -499,9 +409,9 @@ export default function PublicProfilePage() {
 
   if (!user) {
     return (
-      <div className="aura-profile-page">
-        <ProfileTopBar scrolled={topbarScrolled} />
-        <main className="aura-state-page">
+      <div className="nova-page">
+        <NovaTopBar scrolled={topbarScrolled} />
+        <main className="nova-state-page">
           <h1>Sign in to continue</h1>
           <p>Public creator profiles on web use your authenticated Synced-In account.</p>
         </main>
@@ -511,9 +421,9 @@ export default function PublicProfilePage() {
 
   if (!resolvedProfileId || !profile) {
     return (
-      <div className="aura-profile-page">
-        <ProfileTopBar scrolled={topbarScrolled} />
-        <main className="aura-state-page">
+      <div className="nova-page">
+        <NovaTopBar scrolled={topbarScrolled} />
+        <main className="nova-state-page">
           <h1>Profile not found</h1>
           <p>{feedback ?? 'This public profile is not available right now.'}</p>
         </main>
@@ -524,12 +434,14 @@ export default function PublicProfilePage() {
   const profileTag = profile.role === 'creator' ? profile.creatorProfile?.niche?.trim() || 'Creator' : 'Supporter';
   const subtitle =
     profile.role === 'creator'
-      ? profile.creatorProfile?.headline?.trim() || 'Digital Strategist & Enterprise Architect'
+      ? profile.creatorProfile?.headline?.trim() || 'Digital Strategist & Creator Operator'
       : 'Synced-In supporter';
   const resolvedBio =
     profile.bio.trim() ||
     'Empowering modern creators through focused offers, direct relationships, and intuitive client experiences.';
-  const profileHandle = formatProfileHandle(profile);
+  const profileHandle = formatHandle(
+    profile.role === 'creator' ? profile.creatorProfile?.niche || profile.displayName : profile.displayName
+  );
   const avatarUrl = profile.avatarUrl && !avatarFailed ? profile.avatarUrl : FALLBACK_AVATAR;
   const creatorDmPolicy = profile.role === 'creator' ? profile.creatorProfile?.dmIntakePolicy ?? 'direct_message' : 'direct_message';
   const creatorPageBlocks =
@@ -542,133 +454,338 @@ export default function PublicProfilePage() {
   const offeringsBlock = creatorPageBlocks.find((block) => block.type === 'offers') as
     | Extract<CreatorProfilePageBlock, { type: 'offers' }>
     | undefined;
-  const offeringItems = offeringsBlock?.items.slice(0, 3) ?? [];
+  const offeringItems = offeringsBlock?.items.slice(0, 6) ?? [];
+
+  const displayNameTokens = profile.displayName.trim().split(/\s+/);
+  const displayNameLead = displayNameTokens.length > 1 ? displayNameTokens.slice(0, -1).join(' ') : '';
+  const displayNameTail = displayNameTokens[displayNameTokens.length - 1] ?? profile.displayName;
+
+  const primaryActionLabel =
+    profile.role === 'creator' && creatorDmPolicy === 'form'
+      ? 'Open Intake Form'
+      : profile.role === 'creator' && creatorDmPolicy === 'paid_fee'
+        ? `Unlock Message · $${profile.creatorProfile?.dmFeeUsd ?? 25}`
+        : 'Send Message';
+
+  const offeringsCount = offeringItems.length;
+  const postsCount = posts.length;
+  const likesCount = posts.reduce((sum, post) => sum + post.likeCount, 0);
 
   return (
-    <div className="aura-profile-page">
-      <ProfileTopBar scrolled={topbarScrolled} />
+    <div className="nova-page">
+      <NovaTopBar scrolled={topbarScrolled} />
 
-      <main className="aura-profile-main" id="aura-profile-top">
-        <section className="aura-hero">
-          <div className="aura-hero-background">
-            <img src={HERO_BACKGROUND} alt="" />
-            <div className="aura-hero-gradient-top" />
-            <div className="aura-hero-gradient-side" />
-          </div>
+      <main className="nova-main">
+        <section className="nova-hero">
+          <div className="nova-hero-glow nova-hero-glow-blue" />
+          <div className="nova-hero-glow nova-hero-glow-purple" />
+          <div className="nova-hero-grid-overlay" aria-hidden="true" />
 
-          <div className="aura-hero-glow aura-hero-glow-blue" />
-          <div className="aura-hero-glow aura-hero-glow-purple" />
-
-          <div className="aura-hero-content aura-animate-fade-in-up">
-            <div className="aura-hero-badge">
-              <span />
-              <strong>{profile.role === 'creator' ? 'Verified Creator' : 'Synced-In Member'}</strong>
-            </div>
-
-            <div className="aura-avatar-shell">
-              <div />
-              <img src={avatarUrl} alt={profile.displayName} onError={() => setAvatarFailed(true)} />
-            </div>
-
-            <p className="aura-kicker">{profileTag}</p>
-            <h1>
-              {profile.displayName.split(' ').length > 1 ? (
-                <>
-                  {profile.displayName.split(' ').slice(0, -1).join(' ')}{' '}
-                  <span>{profile.displayName.split(' ').slice(-1)[0]}</span>
-                </>
-              ) : (
-                <span>{profile.displayName}</span>
-              )}
-            </h1>
-            <h2>{subtitle}</h2>
-            <p>{resolvedBio}</p>
-            <span className="aura-profile-handle">{profileHandle}</span>
-
-            <div className="aura-hero-actions">
-              <button type="button" className="aura-primary-button" onClick={handlePrimaryAction} disabled={startingConversation}>
-                <AuraIcon name="mail" />
-                {startingConversation ? 'Opening...' : 'Send Message'}
-              </button>
-              <button type="button" className="aura-secondary-button" onClick={handlePortfolioClick}>
-                View Portfolio
-              </button>
-            </div>
-
-            {feedback ? <p className="aura-feedback">{feedback}</p> : null}
-          </div>
-
-          <a href="#aura-video" className="aura-scroll-indicator" aria-label="Scroll to video introduction">
-            <AuraIcon name="chevronDown" />
-          </a>
-        </section>
-
-        <section className="aura-video-section" id="aura-video">
-          <div className="aura-section-inner aura-reveal">
-            <div className="aura-section-heading">
-              <span>Vision</span>
-              <h2>The Architecture of Tomorrow</h2>
-            </div>
-
-            <button
-              type="button"
-              className="aura-video-frame aura-hover-lift"
-              onClick={() => {
-                if (videoBlock?.videoUrl) {
-                  window.open(videoBlock.videoUrl, '_blank', 'noopener,noreferrer');
-                }
-              }}
-            >
-              <img src={VIDEO_THUMBNAIL} alt={videoBlock?.title || 'Professional presenting data'} />
-              <div className="aura-video-overlay" />
-              <span className="aura-play-button">
+          <div className="nova-hero-inner">
+            <div className="nova-hero-left nova-reveal">
+              <div className="nova-badge">
                 <span />
-                <AuraIcon name="play" />
-              </span>
-            </button>
+                <strong>{profile.role === 'creator' ? 'Verified Creator' : 'Synced-In Member'}</strong>
+              </div>
+
+              <p className="nova-kicker">{profileTag}</p>
+
+              <h1 className="nova-hero-title">
+                {displayNameLead ? <>{displayNameLead} </> : null}
+                <span className="nova-gradient-text">{displayNameTail}</span>
+              </h1>
+
+              <h2 className="nova-hero-subtitle">{subtitle}</h2>
+              <p className="nova-hero-bio">{resolvedBio}</p>
+
+              <div className="nova-handle-pill">
+                <NovaIcon name="bolt" />
+                <span>{profileHandle}</span>
+              </div>
+
+              <div className="nova-hero-actions">
+                <button
+                  type="button"
+                  className="nova-primary-cta"
+                  onClick={handlePrimaryAction}
+                  disabled={startingConversation}
+                >
+                  <NovaIcon name="mail" />
+                  {startingConversation ? 'Opening...' : primaryActionLabel}
+                  <span aria-hidden="true" className="nova-cta-arrow">→</span>
+                </button>
+                <a className="nova-secondary-cta" href="#nova-offerings">
+                  <NovaIcon name="grid" />
+                  View Offerings
+                </a>
+              </div>
+
+              {feedback ? <p className="nova-feedback">{feedback}</p> : null}
+
+              <div className="nova-stat-strip" aria-label="Profile stats">
+                <div className="nova-stat">
+                  <div className="nova-stat-value">
+                    <span className="nova-gradient-text">{offeringsCount || 0}</span>
+                  </div>
+                  <div className="nova-stat-label">Offerings</div>
+                </div>
+                <div className="nova-stat">
+                  <div className="nova-stat-value">
+                    <span className="nova-gradient-text">{postsCount}</span>
+                  </div>
+                  <div className="nova-stat-label">Updates</div>
+                </div>
+                <div className="nova-stat">
+                  <div className="nova-stat-value nova-stat-value-green">{likesCount}</div>
+                  <div className="nova-stat-label">Engagements</div>
+                </div>
+              </div>
+            </div>
+
+            <aside className="nova-hero-right nova-reveal nova-delay-1" aria-label="Creator identity card">
+              <div className="nova-identity-card">
+                <div className="nova-identity-cover">
+                  <img src={FALLBACK_COVER} alt="" />
+                  <div className="nova-identity-cover-overlay" />
+                  <div className="nova-identity-cover-grid" aria-hidden="true" />
+                </div>
+
+                <div className="nova-identity-body">
+                  <div className="nova-identity-avatar">
+                    <div className="nova-identity-avatar-ring" />
+                    <img src={avatarUrl} alt={profile.displayName} onError={() => setAvatarFailed(true)} />
+                    <span className="nova-identity-verified" aria-hidden="true">
+                      <NovaIcon name="verified" />
+                    </span>
+                  </div>
+
+                  <div className="nova-identity-copy">
+                    <strong>{profile.displayName}</strong>
+                    <span>{profileHandle}</span>
+                  </div>
+
+                  <div className="nova-identity-meta">
+                    <div>
+                      <NovaIcon name="target" />
+                      <span>{profileTag}</span>
+                    </div>
+                    <div>
+                      <NovaIcon name="users" />
+                      <span>{profile.role === 'creator' ? 'Open to new work' : 'Active supporter'}</span>
+                    </div>
+                    <div>
+                      <NovaIcon name="star" />
+                      <span>Top-rated on Synced-In</span>
+                    </div>
+                  </div>
+
+                  <div className="nova-identity-cta-row">
+                    <button
+                      type="button"
+                      className="nova-identity-cta"
+                      onClick={handlePrimaryAction}
+                      disabled={startingConversation}
+                    >
+                      <NovaIcon name="mail" />
+                      {startingConversation ? 'Opening...' : 'Reach out'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </aside>
           </div>
         </section>
 
-        <section className="aura-services-section" id="aura-services">
-          <div className="aura-services-glow" />
-          <div className="aura-section-inner">
-            <div className="aura-section-heading aura-reveal">
-              <span>Expertise</span>
-              <h2>Premium Services</h2>
-            </div>
+        {videoBlock ? (
+          <section className="nova-section nova-section-video" id="nova-video">
+            <div className="nova-section-inner nova-reveal">
+              <header className="nova-section-header">
+                <span className="nova-section-eyebrow">Signature</span>
+                <h2>
+                  Step inside the <span className="nova-gradient-text">vision</span>
+                </h2>
+                <p>{videoBlock.title || 'A short film about the work, values, and craft behind this profile.'}</p>
+              </header>
 
-            <div className="aura-services-grid">
-              {offeringItems.map((item, index) => (
-                <ServiceCard key={item.id} item={item} index={index} />
-              ))}
+              <button
+                type="button"
+                className="nova-video-frame"
+                onClick={() => {
+                  if (videoBlock?.videoUrl) {
+                    window.open(videoBlock.videoUrl, '_blank', 'noopener,noreferrer');
+                  }
+                }}
+              >
+                <img src={VIDEO_THUMBNAIL} alt={videoBlock?.title || 'Video preview'} />
+                <div className="nova-video-overlay" />
+                <span className="nova-video-play">
+                  <span className="nova-video-play-ring" />
+                  <NovaIcon name="play" />
+                </span>
+                <div className="nova-video-badge">
+                  <span />
+                  <strong>Featured</strong>
+                </div>
+              </button>
             </div>
+          </section>
+        ) : null}
+
+        {offeringItems.length ? (
+          <section className="nova-section nova-section-offerings" id="nova-offerings">
+            <div className="nova-offerings-glow" aria-hidden="true" />
+            <div className="nova-section-inner">
+              <header className="nova-section-header nova-reveal">
+                <span className="nova-section-eyebrow">Offerings</span>
+                <h2>
+                  Ways to <span className="nova-gradient-text">work together</span>
+                </h2>
+                <p>Pick the path that fits. Each offering is delivered end-to-end inside Synced-In.</p>
+              </header>
+
+              <div className="nova-offerings-grid">
+                {offeringItems.map((item, index) => {
+                  const tones = ['blue', 'purple', 'green'] as const;
+                  const tone = tones[index % tones.length];
+
+                  return (
+                    <article
+                      key={item.id}
+                      className={`nova-offering-card nova-offering-${tone} nova-reveal nova-delay-${(index % 3) + 1}`}
+                    >
+                      <div className="nova-offering-corner" aria-hidden="true" />
+                      <div className="nova-offering-image">
+                        <img src={OFFER_IMAGES[index % OFFER_IMAGES.length]} alt="" />
+                        <div className="nova-offering-image-fade" />
+                      </div>
+
+                      <div className="nova-offering-body">
+                        <div className="nova-offering-icon">
+                          <NovaIcon name={getOfferIconName(item.icon)} />
+                        </div>
+                        <div className="nova-offering-index">
+                          {String(index + 1).padStart(2, '0')}
+                        </div>
+
+                        <h3>{item.title}</h3>
+                        <p>{item.description}</p>
+
+                        <button
+                          type="button"
+                          className="nova-offering-link"
+                          onClick={handlePrimaryAction}
+                        >
+                          <span>Inquire</span>
+                          <NovaIcon name="arrow" />
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <section className="nova-section nova-section-pulse" id="nova-pulse">
+          <div className="nova-section-inner nova-reveal">
+            <header className="nova-section-header nova-section-header-split">
+              <div>
+                <span className="nova-section-eyebrow">Pulse</span>
+                <h2>
+                  Recent <span className="nova-gradient-text">updates</span>
+                </h2>
+              </div>
+              <p>Fresh thoughts, launches, and wins posted directly from the Synced-In app.</p>
+            </header>
+
+            {posts.length ? (
+              <div className="nova-pulse-list">
+                {posts.slice(0, 4).map((post, index) => (
+                  <article key={post.id} className={`nova-pulse-card nova-reveal nova-delay-${(index % 3) + 1}`}>
+                    <div className="nova-pulse-spine" />
+                    <div className="nova-pulse-avatar">
+                      <img src={post.authorAvatarUrl || profile.avatarUrl || FALLBACK_AVATAR} alt={post.authorName} />
+                    </div>
+
+                    <div className="nova-pulse-body">
+                      <header>
+                        <strong>{post.authorName}</strong>
+                        <NovaIcon name="verified" className="nova-pulse-check" />
+                        <span className="nova-pulse-meta">
+                          {formatHandle(post.authorName)} · {post.relativeTime}
+                        </span>
+                      </header>
+
+                      {post.body ? <p className="nova-pulse-text">{post.body}</p> : null}
+
+                      {post.imageUrl || index === 1 ? (
+                        <div className="nova-pulse-attachment">
+                          <img src={post.imageUrl || POST_PREVIEW_IMAGE} alt="" />
+                          <div className="nova-pulse-attachment-copy">
+                            <strong>{index === 1 ? 'The Creator Operations Playbook' : 'Latest drop'}</strong>
+                            <span>Tap to preview · Updates weekly</span>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <footer className="nova-pulse-actions">
+                        <span>
+                          <NovaIcon name="comment" />
+                          <em>0</em>
+                        </span>
+                        <span>
+                          <NovaIcon name="repeat" />
+                          <em>0</em>
+                        </span>
+                        <span className="nova-pulse-heart">
+                          <NovaIcon name="heart" />
+                          <em>{post.likeCount}</em>
+                        </span>
+                      </footer>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="nova-pulse-empty">
+                <NovaIcon name="sparkles" />
+                <h3>No updates posted yet</h3>
+                <p>When {profile.displayName} shares something new, it will show up here in real time.</p>
+              </div>
+            )}
           </div>
         </section>
 
-        <section className="aura-updates-section" id="aura-updates">
-          <div className="aura-updates-inner aura-reveal">
-            <div className="aura-updates-heading">
-              <h2>Recent Updates</h2>
-              {posts.length ? (
-                <button type="button">
-                  View all <AuraIcon name="openNew" />
+        <section className="nova-cta-banner">
+          <div className="nova-cta-inner nova-reveal">
+            <div className="nova-cta-glow" aria-hidden="true" />
+            <p className="nova-section-eyebrow">Next step</p>
+            <h2>
+              Ready to start a <span className="nova-gradient-text">conversation?</span>
+            </h2>
+            <p className="nova-cta-body">
+              {profile.role === 'creator'
+                ? `${profile.displayName} reads every message through Synced-In. Skip the inbox chaos and book real time.`
+                : `Say hello and continue the conversation with ${profile.displayName} directly on Synced-In.`}
+            </p>
+            <div className="nova-hero-actions">
+              <button
+                type="button"
+                className="nova-primary-cta"
+                onClick={handlePrimaryAction}
+                disabled={startingConversation}
+              >
+                <NovaIcon name="mail" />
+                {startingConversation ? 'Opening...' : primaryActionLabel}
+                <span aria-hidden="true" className="nova-cta-arrow">→</span>
+              </button>
+              {profile.role === 'creator' && creatorDmPolicy !== 'form' ? (
+                <button type="button" className="nova-secondary-cta" onClick={handleOpenInquiryForm}>
+                  <NovaIcon name="chat" />
+                  Fill out intake
                 </button>
               ) : null}
-            </div>
-
-            <div className="aura-updates-list">
-              {posts.length ? (
-                posts.slice(0, 2).map((post, index) => (
-                  <UpdateCard key={post.id} post={post} index={index} profile={profile} />
-                ))
-              ) : (
-                <article className="aura-glass-panel aura-update-card">
-                  <div className="aura-update-empty">
-                    <h3>No recent updates yet</h3>
-                    <p>This creator has not shared public updates yet.</p>
-                  </div>
-                </article>
-              )}
             </div>
           </div>
         </section>
