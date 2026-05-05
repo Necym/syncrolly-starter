@@ -2,9 +2,52 @@
 
 import { approveConversationRequest, getConversationDetails, markConversationRead, sendMessage } from '@syncrolly/data';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useWebSession } from '../../../lib/session';
-import { BrandMark, Icon, getErrorMessage } from '../../ui';
+import { getErrorMessage } from '../../ui';
+
+type ChatIconName = 'back' | 'more' | 'send' | 'image' | 'camera' | 'check' | 'info';
+
+function ChatIcon({ name, className = '' }: { name: ChatIconName; className?: string }) {
+  const icons: Record<ChatIconName, ReactNode> = {
+    back: <path d="M14.5 5.5 8 12l6.5 6.5" />,
+    more: (
+      <>
+        <circle cx="12" cy="6" r="1.4" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="18" r="1.4" fill="currentColor" stroke="none" />
+      </>
+    ),
+    send: <path d="M4 4 20 12 4 20l3-8-3-8Z" fill="currentColor" stroke="currentColor" />,
+    image: (
+      <>
+        <rect x="3.5" y="5" width="17" height="14" rx="2.4" />
+        <circle cx="9" cy="10" r="1.3" fill="currentColor" stroke="none" />
+        <path d="m4.5 17 4.5-4.6 3 2.9 2.2-2.2 5.3 5.1" />
+      </>
+    ),
+    camera: (
+      <>
+        <path d="M8 7.5h8l1 1.5h3a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 20 18H4a1.5 1.5 0 0 1-1.5-1.5v-6A1.5 1.5 0 0 1 4 9h3z" />
+        <circle cx="12" cy="13.5" r="3" />
+      </>
+    ),
+    check: <path d="m5 12 4 4 10-10" />,
+    info: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5.5" />
+        <circle cx="12" cy="7.8" r="1" fill="currentColor" stroke="none" />
+      </>
+    )
+  };
+
+  return (
+    <svg className={`chat-icon ${className}`} viewBox="0 0 24 24" aria-hidden="true">
+      {icons[name]}
+    </svg>
+  );
+}
 
 export default function ThreadPage() {
   const params = useParams<{ threadId: string }>();
@@ -231,240 +274,228 @@ export default function ThreadPage() {
     }
   }
 
+  function ChatShell({ children }: { children: ReactNode }) {
+    return (
+      <div className="chat-page">
+        <div className="chat-glow chat-glow-blue" />
+        <div className="chat-glow chat-glow-purple" />
+        {children}
+      </div>
+    );
+  }
+
   if (!isConfigured || !supabase) {
     return (
-      <div className="thread-page">
-        <header className="thread-topbar-shell">
-          <div className="thread-topbar">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
-            </button>
-            <div className="brand brand-compact">
-              <BrandMark />
-              <span className="brand-name">Synchrolly</span>
-            </div>
-          </div>
+      <ChatShell>
+        <header className="chat-topbar">
+          <button type="button" className="chat-icon-button" onClick={handleBack} aria-label="Go back">
+            <ChatIcon name="back" />
+          </button>
         </header>
-
-        <main className="center-stage-page">
-          <div className="center-stage">
-            <h1 className="stage-title">Supabase isn&apos;t configured</h1>
-            <p className="stage-body">Add the web environment keys, then restart Next.</p>
-          </div>
+        <main className="chat-state">
+          <h1>Supabase isn&apos;t configured</h1>
+          <p>Add the web environment keys, then restart Next.</p>
         </main>
-      </div>
+      </ChatShell>
     );
   }
 
   if (sessionLoading || (loadingConversation && !conversation)) {
     return (
-      <div className="thread-page">
-        <header className="thread-topbar-shell">
-          <div className="thread-topbar">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
-            </button>
-          </div>
+      <ChatShell>
+        <header className="chat-topbar">
+          <button type="button" className="chat-icon-button" onClick={handleBack} aria-label="Go back">
+            <ChatIcon name="back" />
+          </button>
         </header>
-
-        <main className="center-stage-page">
-          <div className="center-stage">
-            <div className="spinner" aria-hidden="true" />
-            <p className="stage-body">Loading conversation...</p>
-          </div>
+        <main className="chat-state">
+          <div className="spinner" aria-hidden="true" />
+          <p>Loading conversation...</p>
         </main>
-      </div>
+      </ChatShell>
     );
   }
 
   if (!user) {
     return (
-      <div className="thread-page">
-        <header className="thread-topbar-shell">
-          <div className="thread-topbar">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
-            </button>
-          </div>
+      <ChatShell>
+        <header className="chat-topbar">
+          <button type="button" className="chat-icon-button" onClick={handleBack} aria-label="Go back">
+            <ChatIcon name="back" />
+          </button>
         </header>
-
-        <main className="center-stage-page">
-          <div className="center-stage">
-            <h1 className="stage-title">Sign in first</h1>
-            <p className="stage-body">This conversation is tied to your real Synced-In account.</p>
-          </div>
+        <main className="chat-state">
+          <h1>Sign in first</h1>
+          <p>This conversation is tied to your Synced-In account.</p>
         </main>
-      </div>
+      </ChatShell>
     );
   }
 
   if (!conversation) {
     return (
-      <div className="thread-page">
-        <header className="thread-topbar-shell">
-          <div className="thread-topbar">
-            <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-              <Icon name="back" />
-            </button>
-          </div>
+      <ChatShell>
+        <header className="chat-topbar">
+          <button type="button" className="chat-icon-button" onClick={handleBack} aria-label="Go back">
+            <ChatIcon name="back" />
+          </button>
         </header>
-
-        <main className="center-stage-page">
-          <div className="center-stage">
-            <h1 className="stage-title">Conversation not found</h1>
-            <p className="stage-body">{feedback ?? 'Go back to the inbox and start a new message from there.'}</p>
-          </div>
+        <main className="chat-state">
+          <h1>Conversation not found</h1>
+          <p>{feedback ?? 'Go back to the inbox and start a new message from there.'}</p>
         </main>
-      </div>
+      </ChatShell>
     );
   }
 
-  const activityLabel = conversation.activityLabel.toUpperCase();
-  const presenceColor = conversation.participantPresence === 'online' ? 'var(--color-success)' : 'var(--color-text-muted)';
   const showAvatarImage = Boolean(conversation.participantAvatar && !avatarFailed);
+  const isOnline = conversation.participantPresence === 'online';
+  const presenceText = isOnline ? 'Active now' : conversation.activityLabel;
+  const composerPlaceholder = !conversation.canSendMessage
+    ? 'Waiting for approval...'
+    : conversation.status === 'request'
+      ? 'Send your request...'
+      : 'Message';
+
   const requestBannerTitle = conversation.canApproveRequest
     ? 'Message request'
     : conversation.canSendMessage
-      ? 'Send your first request'
+      ? 'First message'
       : 'Pending approval';
   const requestBannerBody = conversation.canApproveRequest
-    ? 'Approve this request to move the conversation into the active inbox, or reply to approve it automatically.'
+    ? 'Approve to move this into your active inbox, or reply to approve automatically.'
     : conversation.canSendMessage
-      ? 'This creator gates access. Your first message will be sent as a request for approval.'
-      : 'Your request has been sent. You can send more messages after the creator approves the conversation.';
-  const composerPlaceholder = !conversation.canSendMessage
-    ? 'Waiting for creator approval...'
-    : conversation.status === 'request'
-      ? 'Send your request...'
-      : 'Write a message...';
+      ? 'Your first message will be sent as a request.'
+      : 'Waiting for approval. You can send more once accepted.';
 
   return (
-    <div className="thread-page">
-      <header className="thread-topbar-shell">
-        <div className="thread-topbar">
-          <button type="button" className="icon-button" onClick={handleBack} aria-label="Go back">
-            <Icon name="back" />
-          </button>
+    <ChatShell>
+      <header className="chat-topbar">
+        <button type="button" className="chat-icon-button" onClick={handleBack} aria-label="Go back">
+          <ChatIcon name="back" />
+        </button>
 
-          <div className="header-identity">
-            <div className="header-avatar" style={{ borderColor: `${conversation.participantAccentColor}33` }}>
-              {showAvatarImage ? (
-                <img
-                  src={conversation.participantAvatar}
-                  alt={conversation.participantName}
-                  className="header-avatar-image"
-                  onError={() => setAvatarFailed(true)}
-                />
-              ) : (
-                <span className="header-avatar-text" style={{ color: conversation.participantAccentColor }}>
-                  {conversation.participantInitials}
-                </span>
-              )}
-              <span className="header-presence-dot" style={{ backgroundColor: presenceColor }} />
-            </div>
-
-            <div className="header-copy">
-              <h1 className="header-name">{conversation.participantName}</h1>
-              <p className="header-meta">{activityLabel}</p>
-            </div>
+        <div className="chat-identity">
+          <div className="chat-avatar">
+            {showAvatarImage ? (
+              <img
+                src={conversation.participantAvatar}
+                alt={conversation.participantName}
+                onError={() => setAvatarFailed(true)}
+              />
+            ) : (
+              <span style={{ color: conversation.participantAccentColor }}>
+                {conversation.participantInitials}
+              </span>
+            )}
+            {isOnline ? <span className="chat-avatar-dot" aria-hidden="true" /> : null}
           </div>
-
-          <button type="button" className="icon-button" aria-label="Conversation options">
-            <Icon name="more" />
-          </button>
+          <div className="chat-identity-copy">
+            <strong>{conversation.participantName}</strong>
+            <span className={isOnline ? 'chat-presence online' : 'chat-presence'}>{presenceText}</span>
+          </div>
         </div>
+
+        <button type="button" className="chat-icon-button" aria-label="Conversation options">
+          <ChatIcon name="more" />
+        </button>
       </header>
 
-      <main className="thread-main">
-        <section className="thread-shell">
-          <div ref={scrollPanelRef} className="thread-scroll-panel">
-            <div className="thread-messages">
-              {conversation.status === 'request' ? (
-                <div className="request-banner">
-                  <div className="request-banner-header">
-                    <span className="request-badge">{conversation.statusLabel}</span>
-                    {conversation.canApproveRequest ? (
-                      <button
-                        type="button"
-                        className="request-approve-button"
-                        onClick={() => void handleApproveRequest()}
-                        disabled={approvingRequest}
-                      >
-                        {approvingRequest ? <span className="button-spinner" aria-hidden="true" /> : 'Approve'}
-                      </button>
-                    ) : null}
+      <main ref={scrollPanelRef} className="chat-scroll">
+        <div className="chat-messages">
+          {conversation.status === 'request' ? (
+            <div className="chat-request">
+              <div className="chat-request-head">
+                <ChatIcon name="info" />
+                <span>{conversation.statusLabel}</span>
+                {conversation.canApproveRequest ? (
+                  <button
+                    type="button"
+                    className="chat-request-approve"
+                    onClick={() => void handleApproveRequest()}
+                    disabled={approvingRequest}
+                  >
+                    {approvingRequest ? <span className="button-spinner" aria-hidden="true" /> : 'Approve'}
+                  </button>
+                ) : null}
+              </div>
+              <strong>{requestBannerTitle}</strong>
+              <p>{requestBannerBody}</p>
+            </div>
+          ) : null}
+
+          {feedback ? <p className="chat-feedback">{feedback}</p> : null}
+
+          {conversation.messages.map((message, index) => {
+            const prev = conversation.messages[index - 1];
+            const next = conversation.messages[index + 1];
+            const isOutgoing = message.isFromCreator;
+            const isGroupStart = !prev || prev.isFromCreator !== isOutgoing || Boolean(message.dayLabel);
+            const isGroupEnd = !next || next.isFromCreator !== isOutgoing || Boolean(next.dayLabel);
+
+            return (
+              <div key={message.id}>
+                {message.dayLabel ? (
+                  <div className="chat-day">
+                    <span>{message.dayLabel}</span>
                   </div>
+                ) : null}
 
-                  <h2 className="request-banner-title">{requestBannerTitle}</h2>
-                  <p className="request-banner-body">{requestBannerBody}</p>
-                </div>
-              ) : null}
-
-              {feedback ? <p className="feedback-inline">{feedback}</p> : null}
-
-              {conversation.messages.map((message) => (
-                <div key={message.id} className="message-block">
-                  {message.dayLabel ? (
-                    <div className="day-pill-wrap">
-                      <div className="day-pill">
-                        <span className="day-pill-text">{message.dayLabel.toUpperCase()}</span>
-                      </div>
+                <div
+                  className={`chat-bubble-row ${isOutgoing ? 'out' : 'in'}${
+                    isGroupStart ? ' group-start' : ''
+                  }${isGroupEnd ? ' group-end' : ''}`}
+                >
+                  <div className="chat-bubble">
+                    <p>{message.text}</p>
+                  </div>
+                  {isGroupEnd ? (
+                    <div className="chat-bubble-meta">
+                      <span>{message.timeLabel}</span>
+                      {isOutgoing ? <ChatIcon name="check" className="chat-meta-check" /> : null}
                     </div>
                   ) : null}
-
-                  <div className={`message-row ${message.isFromCreator ? 'outgoing' : 'incoming'}`}>
-                    <div className={`message-bubble ${message.isFromCreator ? 'outgoing' : 'incoming'}`}>
-                      <p className={`message-text ${message.isFromCreator ? 'outgoing' : 'incoming'}`}>{message.text}</p>
-                    </div>
-
-                    <div className={`message-meta-row ${message.isFromCreator ? 'outgoing' : ''}`}>
-                      <span className="message-meta-text">{message.timeLabel}</span>
-                      {message.isFromCreator ? <span className="message-meta-check">✓✓</span> : null}
-                    </div>
-                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="thread-composer">
-            <button type="button" className="media-button" aria-label="Attach camera content">
-              <Icon name="camera" />
-            </button>
-            <button type="button" className="media-button" aria-label="Attach image">
-              <Icon name="image" />
-            </button>
-
-            <input
-              className={`thread-input${!conversation.canSendMessage ? ' disabled' : ''}`}
-              type="text"
-              value={draft}
-              disabled={!conversation.canSendMessage}
-              onChange={(event) => setDraft(event.target.value)}
-              onFocus={() => {
-                pendingAutoScrollRef.current = true;
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  void handleSend();
-                }
-              }}
-              placeholder={composerPlaceholder}
-            />
-
-            <button
-              type="button"
-              className={`send-button${!draft.trim() || sending || !conversation.canSendMessage ? ' disabled' : ''}`}
-              onClick={() => void handleSend()}
-              disabled={!draft.trim() || sending || !conversation.canSendMessage}
-              aria-label="Send message"
-            >
-              {sending ? <span className="button-spinner" aria-hidden="true" /> : <Icon name="send" />}
-            </button>
-          </div>
-        </section>
+              </div>
+            );
+          })}
+        </div>
       </main>
-    </div>
+
+      <form
+        className="chat-composer"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSend();
+        }}
+      >
+        <button type="button" className="chat-icon-button ghost" aria-label="Attach image">
+          <ChatIcon name="image" />
+        </button>
+
+        <div className="chat-input-wrap">
+          <input
+            className="chat-input"
+            type="text"
+            value={draft}
+            disabled={!conversation.canSendMessage}
+            onChange={(event) => setDraft(event.target.value)}
+            onFocus={() => {
+              pendingAutoScrollRef.current = true;
+            }}
+            placeholder={composerPlaceholder}
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="chat-send"
+          disabled={!draft.trim() || sending || !conversation.canSendMessage}
+          aria-label="Send message"
+        >
+          {sending ? <span className="button-spinner" aria-hidden="true" /> : <ChatIcon name="send" />}
+        </button>
+      </form>
+    </ChatShell>
   );
 }
