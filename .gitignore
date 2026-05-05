@@ -8,3 +8,4 @@ build
 !.env.example
 !apps/*/.env.example
 .DS_Store
+.env
