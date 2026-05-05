@@ -7861,6 +7861,119 @@ a {
   line-height: 1.6;
 }
 
+.aura-hero-glow {
+  position: absolute;
+  z-index: 1;
+  border-radius: 999px;
+  filter: blur(120px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.aura-hero-glow-blue {
+  top: 18%;
+  left: 14%;
+  width: 420px;
+  height: 420px;
+  background: rgba(77, 142, 255, 0.28);
+}
+
+.aura-hero-glow-purple {
+  right: 14%;
+  bottom: 18%;
+  width: 540px;
+  height: 540px;
+  background: rgba(87, 27, 193, 0.28);
+  filter: blur(150px);
+}
+
+.aura-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 0 18px;
+  margin-bottom: 32px;
+  color: #c2c6d6;
+  background: rgba(23, 32, 48, 0.55);
+  border: 1px solid rgba(66, 71, 83, 0.7);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+}
+
+.aura-hero-badge span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #adc6ff;
+  box-shadow: 0 0 12px rgba(173, 198, 255, 0.6);
+  animation: welcomePulse 1400ms ease-in-out infinite;
+}
+
+.aura-hero-badge strong {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.aura-hero h1 span {
+  background: linear-gradient(135deg, #4d8eff 0%, #571bc1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.aura-card-corner {
+  position: absolute;
+  top: -64px;
+  right: -64px;
+  width: 128px;
+  height: 128px;
+  border-bottom-left-radius: 999px;
+  opacity: 0.32;
+  pointer-events: none;
+  transition: transform 240ms ease;
+  z-index: 1;
+}
+
+.aura-service-card:hover .aura-card-corner {
+  transform: scale(1.15);
+}
+
+.aura-service-card-blue .aura-card-corner {
+  background: #4d8eff;
+}
+
+.aura-service-card-purple .aura-card-corner {
+  background: #571bc1;
+}
+
+.aura-service-card-green .aura-card-corner {
+  background: #0f766e;
+}
+
+.aura-service-card-blue:hover {
+  border-color: rgba(77, 142, 255, 0.55);
+}
+
+.aura-service-card-purple:hover {
+  border-color: rgba(143, 91, 255, 0.55);
+}
+
+.aura-service-card-green:hover {
+  border-color: rgba(52, 211, 153, 0.5);
+}
+
+.aura-service-card-purple .aura-service-icon .aura-icon {
+  color: #d0bcff;
+}
+
+.aura-service-card-green .aura-service-icon .aura-icon {
+  color: #34d399;
+}
+
 .aura-reveal {
   opacity: 0;
   transform: translateY(30px);

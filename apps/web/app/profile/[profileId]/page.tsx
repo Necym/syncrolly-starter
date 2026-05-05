@@ -236,8 +236,13 @@ function ProfileTopBar({ scrolled }: { scrolled: boolean }) {
 }
 
 function ServiceCard({ item, index }: { item: CreatorProfileOfferItem; index: number }) {
+  const tones = ['blue', 'purple', 'green'] as const;
+  const tone = tones[index % tones.length];
   return (
-    <article className={`aura-glass-panel aura-service-card aura-hover-lift aura-reveal aura-delay-${index + 1}`}>
+    <article
+      className={`aura-glass-panel aura-service-card aura-service-card-${tone} aura-hover-lift aura-reveal aura-delay-${index + 1}`}
+    >
+      <div className="aura-card-corner" />
       {index === 1 ? <div className="aura-card-accent" /> : null}
       <div className="aura-service-image">
         <div />
@@ -551,14 +556,31 @@ export default function PublicProfilePage() {
             <div className="aura-hero-gradient-side" />
           </div>
 
+          <div className="aura-hero-glow aura-hero-glow-blue" />
+          <div className="aura-hero-glow aura-hero-glow-purple" />
+
           <div className="aura-hero-content aura-animate-fade-in-up">
+            <div className="aura-hero-badge">
+              <span />
+              <strong>{profile.role === 'creator' ? 'Verified Creator' : 'Synced-In Member'}</strong>
+            </div>
+
             <div className="aura-avatar-shell">
               <div />
               <img src={avatarUrl} alt={profile.displayName} onError={() => setAvatarFailed(true)} />
             </div>
 
             <p className="aura-kicker">{profileTag}</p>
-            <h1>{profile.displayName}</h1>
+            <h1>
+              {profile.displayName.split(' ').length > 1 ? (
+                <>
+                  {profile.displayName.split(' ').slice(0, -1).join(' ')}{' '}
+                  <span>{profile.displayName.split(' ').slice(-1)[0]}</span>
+                </>
+              ) : (
+                <span>{profile.displayName}</span>
+              )}
+            </h1>
             <h2>{subtitle}</h2>
             <p>{resolvedBio}</p>
             <span className="aura-profile-handle">{profileHandle}</span>
