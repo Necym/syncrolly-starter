@@ -33,6 +33,7 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, type ReactNode } from 'react';
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { SyncedHome } from './synced-home';
 import { getDefaultDisplayName, getPreferredRole, useWebSession } from '../lib/session';
 import { BottomNav, Icon, getErrorMessage } from './ui';
 
@@ -1963,6 +1964,10 @@ function HomePageContent() {
         </main>
       </div>
     );
+  }
+
+  if (!user) {
+    return <SyncedHome onAuth={handleWelcomeAuth} authCard={renderWelcomeAuthCard()} />;
   }
 
   if (!user) {

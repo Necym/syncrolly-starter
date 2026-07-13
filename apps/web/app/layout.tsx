@@ -4,8 +4,8 @@ import './globals.css';
 import { RealtimeVoiceWidget } from './realtime-voice-widget';
 
 export const metadata = {
-  title: `${APP_NAME} | Creator Inbox`,
-  description: 'Premium inbox shell for Synced-In creators across mobile and web.'
+  title: `${APP_NAME} | Run your creator business in one place`,
+  description: 'Profiles, messages, intelligent intake, programs, and scheduling for modern creator businesses.'
 };
 
 const rootVariables = {
